@@ -39,7 +39,7 @@ export abstract class BaseAgent {
     });
   }
 
-  protected getContext(key: string): any {
+  protected getContextItem(key: string): any {
     const contextItem = this.context.memoryBank.get(key);
     if (contextItem) {
       contextItem.accessCount++;
@@ -114,7 +114,7 @@ export abstract class BaseAgent {
   // 📊 Performance Analytics & Learning
   protected updatePerformanceMetrics(task: Task, success: boolean, completionTime: number): void {
     const performanceKey = `performance_${this.role}`;
-    const currentMetrics = this.getContext(performanceKey) || {
+    const currentMetrics = this.getContextItem(performanceKey) || {
       tasksCompleted: 0,
       totalTime: 0,
       successCount: 0,
