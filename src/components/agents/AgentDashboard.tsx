@@ -7,12 +7,25 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AgentState, AgentRole, VibeCodeSession, Task } from '@/types/agents';
-import { Brain, Zap, Users, Code, Activity, Sparkles } from 'lucide-react';
+import { AgentState, AgentRole, VibeCodeSession, Task, AgentMessage, CodeFile } from '@/types/agents';
+import { Brain, Zap, Users, Code, Activity, Sparkles, MessageSquare, FileCode } from 'lucide-react';
+import { SessionModal } from './SessionModal';
+import { ChatWindow } from './ChatWindow';
+import { CodeWorkspace } from './CodeWorkspace';
+import { NotificationSystem, useNotifications } from './NotificationSystem';
 
 interface AgentDashboardProps {
   onStartSession: (title: string, description: string) => void;
   onProcessRequest: (prompt: string, sessionId: string) => void;
+}
+
+interface SessionData {
+  title: string;
+  description: string;
+  projectType: string;
+  complexity: 'simple' | 'moderate' | 'complex' | 'enterprise';
+  techStack: string[];
+  requirements: string[];
 }
 
 export const AgentDashboard: React.FC<AgentDashboardProps> = ({
@@ -24,6 +37,21 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
   const [selectedAgent, setSelectedAgent] = useState<AgentState | null>(null);
   const [vibePrompt, setVibePrompt] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // New state for modals and windows
+  const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatMinimized, setIsChatMinimized] = useState(false);
+  const [isCodeWorkspaceOpen, setIsCodeWorkspaceOpen] = useState(false);
+  const [isCodeWorkspaceMinimized, setIsCodeWorkspaceMinimized] = useState(false);
+  
+  // Chat and code state
+  const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [codeFiles, setCodeFiles] = useState<CodeFile[]>([]);
+  const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
+  
+  // Notifications
+  const notifications = useNotifications();
 
   // Mock data for demonstration
   useEffect(() => {
@@ -125,26 +153,163 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
   };
 
   const handleStartNewSession = () => {
-    const title = 'New Vibe Coding Session';
-    const description = 'Revolutionary development session with multi-agent collaboration';
-    onStartSession(title, description);
+    setIsSessionModalOpen(true);
+  };
+
+  const handleCreateSession = (sessionData: SessionData) => {
+    // Create new session
+    const newSession: VibeCodeSession = {
+      id: `session_${Date.now()}`,
+      title: sessionData.title,
+      description: sessionData.description,
+      status: 'active',
+      participants: [],
+      tasks: [],
+      codebase: {
+        files: [],
+        architecture: 'Multi-Agent System',
+        techStack: sessionData.techStack
+      },
+      vibeMetrics: {
+        flowScore: 0,
+        iterationVelocity: 0,
+        codeQuality: 0,
+        userSatisfaction: 0
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    setActiveSessions(prev => [newSession, ...prev]);
+    onStartSession(sessionData.title, sessionData.description);
+    
+    // Open chat and code workspace
+    setIsChatOpen(true);
+    setIsCodeWorkspaceOpen(true);
+    
+    // Show success notification
+    notifications.showSuccess(
+      'Session Created!',
+      `${sessionData.title} is ready for development`,
+      {
+        label: 'Start Coding',
+        onClick: () => setIsCodeWorkspaceOpen(true)
+      }
+    );
+
+    // Initialize with sample files based on tech stack
+    const sampleFiles: CodeFile[] = [];
+    if (sessionData.techStack.includes('React')) {
+      sampleFiles.push({
+        path: 'src/App.tsx',
+        content: `import React from 'react';\n\nfunction App() {\n  return (\n    <div className="App">\n      <h1>Welcome to ${sessionData.title}</h1>\n    </div>\n  );\n}\n\nexport default App;`,
+        language: 'typescript',
+        lastModified: new Date(),
+        modifiedBy: 'coordinator',
+        version: 1,
+        status: 'draft'
+      });
+    }
+    setCodeFiles(sampleFiles);
   };
 
   const handleProcessPrompt = async () => {
     if (!vibePrompt.trim() || activeSessions.length === 0) return;
     
     setIsProcessing(true);
+    
+    // Add user message to chat
+    const userMessage: AgentMessage = {
+      id: `msg_${Date.now()}`,
+      content: vibePrompt,
+      timestamp: new Date(),
+      agentId: 'user',
+      type: 'command'
+    };
+    setMessages(prev => [...prev, userMessage]);
+    
     try {
       await onProcessRequest(vibePrompt, activeSessions[0].id);
+      
+      // Simulate agent response
+      setTimeout(() => {
+        const agentResponse: AgentMessage = {
+          id: `msg_${Date.now()}_response`,
+          content: `I understand you want to: "${vibePrompt}". Let me coordinate with the team to implement this functionality.`,
+          timestamp: new Date(),
+          agentId: AgentRole.COORDINATOR,
+          type: 'response',
+          metadata: {
+            taskId: `task_${Date.now()}`,
+            tags: ['coordination', 'planning']
+          }
+        };
+        setMessages(prev => [...prev, agentResponse]);
+        
+        notifications.showAgentNotification(
+          'Coordinator',
+          'Task Received',
+          'Processing your request with the agent team'
+        );
+      }, 1000);
+      
       setVibePrompt('');
     } finally {
       setIsProcessing(false);
     }
   };
 
+  const handleSendChatMessage = (message: string) => {
+    if (!message.trim()) return;
+    
+    const userMessage: AgentMessage = {
+      id: `msg_${Date.now()}`,
+      content: message,
+      timestamp: new Date(),
+      agentId: 'user',
+      type: 'command'
+    };
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Process the message (same as handleProcessPrompt but for chat)
+    setIsProcessing(true);
+    setTimeout(() => {
+      const agentResponse: AgentMessage = {
+        id: `msg_${Date.now()}_response`,
+        content: `Got it! Working on: "${message}"`,
+        timestamp: new Date(),
+        agentId: AgentRole.DEVELOPER,
+        type: 'response'
+      };
+      setMessages(prev => [...prev, agentResponse]);
+      setIsProcessing(false);
+    }, 1500);
+  };
+
+  const handleFileChange = (filePath: string, content: string) => {
+    setCodeFiles(prev => prev.map(file => 
+      file.path === filePath 
+        ? { ...file, content, lastModified: new Date(), version: file.version + 1 }
+        : file
+    ));
+    notifications.showInfo('File Updated', `${filePath} has been modified`);
+  };
+
+  const handleRunCode = () => {
+    notifications.showInfo('Running Code', 'Executing your application...');
+    setTimeout(() => {
+      notifications.showSuccess('Code Executed', 'Your application is running successfully!');
+    }, 2000);
+  };
+
+  const handleSaveFiles = () => {
+    notifications.showSuccess('Files Saved', 'All changes have been saved successfully');
+  };
+
   return (
-    <div className="min-h-screen p-6 mesh-bg">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <>
+      <div className="min-h-screen p-6 mesh-bg">
+        <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="glass rounded-[var(--radius-glass)] p-6 animate-float">
           <div className="flex items-center justify-between">
@@ -156,14 +321,34 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
                 Revolutionary AI-powered collaborative development platform
               </p>
             </div>
-            <Button 
-              onClick={handleStartNewSession}
-              className="neuo glow animate-pulse-glow"
-              size="lg"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Start New Session
-            </Button>
+            <div className="flex space-x-3">
+              <Button 
+                onClick={() => setIsChatOpen(true)}
+                className="neuo glow"
+                size="lg"
+                disabled={activeSessions.length === 0}
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Open Chat
+              </Button>
+              <Button 
+                onClick={() => setIsCodeWorkspaceOpen(true)}
+                className="neuo glow"
+                size="lg"
+                disabled={activeSessions.length === 0}
+              >
+                <FileCode className="w-4 h-4 mr-2" />
+                Code Workspace
+              </Button>
+              <Button 
+                onClick={handleStartNewSession}
+                className="neuo glow animate-pulse-glow"
+                size="lg"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Start New Session
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -403,7 +588,47 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
-    </div>
+
+      {/* Modals and Windows */}
+      <SessionModal 
+        isOpen={isSessionModalOpen}
+        onClose={() => setIsSessionModalOpen(false)}
+        onCreateSession={handleCreateSession}
+      />
+
+      <ChatWindow
+        isOpen={isChatOpen}
+        isMinimized={isChatMinimized}
+        onMinimize={() => setIsChatMinimized(true)}
+        onMaximize={() => setIsChatMinimized(false)}
+        onClose={() => setIsChatOpen(false)}
+        sessionId={activeSessions[0]?.id || ''}
+        onSendMessage={handleSendChatMessage}
+        messages={messages}
+        isProcessing={isProcessing}
+      />
+
+      <CodeWorkspace
+        isOpen={isCodeWorkspaceOpen}
+        isMinimized={isCodeWorkspaceMinimized}
+        onMinimize={() => setIsCodeWorkspaceMinimized(true)}
+        onMaximize={() => setIsCodeWorkspaceMinimized(false)}
+        onClose={() => setIsCodeWorkspaceOpen(false)}
+        sessionId={activeSessions[0]?.id || ''}
+        codeFiles={codeFiles}
+        currentTasks={currentTasks}
+        onFileChange={handleFileChange}
+        onRunCode={handleRunCode}
+        onSaveFiles={handleSaveFiles}
+      />
+
+      {/* Notifications */}
+      <NotificationSystem
+        notifications={notifications.notifications}
+        onDismiss={notifications.dismissNotification}
+      />
+    </>
   );
 };
