@@ -7,7 +7,7 @@ import { AgentRole, Task, VibeCodeSession, AgentResponse } from '@/types/agents'
 // 🏗️ ARCHITECT AGENT - System Design & Architecture Planning
 export class ArchitectAgent extends BaseAgent {
   constructor() {
-    super(AgentRole.ARCHITECT);
+    super('architect-agent', AgentRole.ARCHITECT);
   }
 
   protected initializeAgent(): void {
@@ -171,7 +171,7 @@ Would you like me to elaborate on any of these aspects?`;
 // 💻 DEVELOPER AGENT - Code Implementation & Development
 export class DeveloperAgent extends BaseAgent {
   constructor() {
-    super(AgentRole.DEVELOPER);
+    super('developer-agent', AgentRole.DEVELOPER);
   }
 
   protected initializeAgent(): void {
@@ -388,7 +388,7 @@ export const ${task.title.replace(/\s+/g, '')}: React.FC<${task.title.replace(/\
 // 📊 ANALYST AGENT - Data Analysis & Performance Monitoring
 export class AnalystAgent extends BaseAgent {
   constructor() {
-    super(AgentRole.ANALYST);
+    super('analyst-agent', AgentRole.ANALYST);
   }
 
   protected initializeAgent(): void {
