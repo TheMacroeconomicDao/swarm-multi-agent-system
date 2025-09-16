@@ -71,6 +71,16 @@
     --border: 240 8% 18%;
     --input: 240 8% 15%;
     --ring: var(--primary);
+    
+    /* 🚨 Status & Feedback Colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 76% 36%;
+    --success-foreground: 210 40% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 240 12% 6%;
+    --info: 217 91% 60%;
+    --info-foreground: 210 40% 98%;
 
     /* 🚀 Animation & Transitions */
     --transition-smooth: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -150,6 +160,12 @@
     --muted-foreground: 215 25% 70%;
     --border: 240 10% 12%;
     --input: 240 10% 8%;
+    
+    /* 🚨 Enhanced Status Colors for Dark Mode */
+    --destructive: 0 90% 70%;
+    --success: 142 80% 45%;
+    --warning: 38 95% 60%;
+    --info: 217 95% 70%;
 
     /* 🔧 Sidebar Colors for Dark Mode */
     --sidebar-background: 240 12% 6%;

@@ -12,6 +12,7 @@ export interface AgentMessage {
     priority?: 'low' | 'medium' | 'high' | 'critical';
     tags?: string[];
     parentMessageId?: string;
+    sessionId?: string;
   };
 }
 
