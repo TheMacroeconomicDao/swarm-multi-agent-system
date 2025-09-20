@@ -137,7 +137,7 @@ export class SwarmCoordinator extends BaseAgent {
     console.log('🐝 Swarm agents initialization ready');
   }
 
-  protected async processTask(task: Task): Promise<AgentResponse> {
+  public async processTask(task: Task): Promise<AgentResponse> {
     console.log(`🐝 Swarm processing task: ${task.title}`);
     
     // Convert to swarm task
