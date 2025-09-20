@@ -66,7 +66,12 @@ export abstract class SwarmAgent extends BaseAgent {
     capabilities: SwarmAgentCapabilities,
     initialContext: Partial<AgentContext> = {}
   ) {
-    super(id, role, initialContext);
+    const extendedContext = {
+      ...initialContext,
+      swarmCapabilities: capabilities
+    };
+    
+    super(id, role, extendedContext);
     
     this.capabilities = capabilities;
     this.swarmContext = new Map();
@@ -85,6 +90,13 @@ export abstract class SwarmAgent extends BaseAgent {
   // Abstract methods for swarm functionality
   public abstract processSwarmTask(task: SwarmTask): Promise<AgentResponse>;
   public abstract validateSwarmOutput(output: any): Promise<boolean>;
+  
+  protected initializeAgent(): void {
+    // Base initialization - swarm agents will override this safely
+    if (this.swarmContext) {
+      console.log(`🐝 Swarm Agent ${this.id} initialized with role ${this.role}`);
+    }
+  }
 
   // Swarm-specific capabilities
   public async shareContext(targetAgentId: string, context: any): Promise<void> {

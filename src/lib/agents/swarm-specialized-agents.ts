@@ -40,13 +40,16 @@ export class FrontendSwarmAgent extends SwarmAgent {
   }
 
   public async initializeAgent(): Promise<void> {
-    this.updateContext('specialty', 'Frontend Development & UI/UX Implementation');
-    this.updateContext('expertise', ['React', 'TypeScript', 'Tailwind CSS', 'Component Architecture']);
-    this.updateContext('focus_areas', ['user-interface', 'user-experience', 'performance', 'accessibility']);
-    
-    this.swarmContext.set('current_framework', 'react');
-    this.swarmContext.set('styling_approach', 'tailwind');
-    this.swarmContext.set('state_management', 'context');
+    // Call parent initializeAgent first to ensure proper setup
+    if (this.swarmContext) {
+      this.updateContext('specialty', 'Frontend Development & UI/UX Implementation');
+      this.updateContext('expertise', ['React', 'TypeScript', 'Tailwind CSS', 'Component Architecture']);
+      this.updateContext('focus_areas', ['user-interface', 'user-experience', 'performance', 'accessibility']);
+      
+      this.swarmContext.set('current_framework', 'react');
+      this.swarmContext.set('styling_approach', 'tailwind');
+      this.swarmContext.set('state_management', 'context');
+    }
   }
 
   public async processSwarmTask(task: SwarmTask): Promise<AgentResponse> {
@@ -336,13 +339,15 @@ export class BackendSwarmAgent extends SwarmAgent {
   }
 
   public async initializeAgent(): Promise<void> {
-    this.updateContext('specialty', 'Backend Development & API Design');
-    this.updateContext('expertise', ['Node.js', 'Express', 'TypeScript', 'PostgreSQL', 'MongoDB']);
-    this.updateContext('focus_areas', ['api-design', 'database-optimization', 'security', 'scalability']);
-    
-    this.swarmContext.set('current_framework', 'express');
-    this.swarmContext.set('database', 'postgresql');
-    this.swarmContext.set('orm', 'prisma');
+    if (this.swarmContext) {
+      this.updateContext('specialty', 'Backend Development & API Design');
+      this.updateContext('expertise', ['Node.js', 'Express', 'TypeScript', 'PostgreSQL', 'MongoDB']);
+      this.updateContext('focus_areas', ['api-design', 'database-optimization', 'security', 'scalability']);
+      
+      this.swarmContext.set('current_framework', 'express');
+      this.swarmContext.set('database', 'postgresql');
+      this.swarmContext.set('orm', 'prisma');
+    }
   }
 
   public async processSwarmTask(task: SwarmTask): Promise<AgentResponse> {
@@ -576,13 +581,15 @@ export class TestingSwarmAgent extends SwarmAgent {
   }
 
   public async initializeAgent(): Promise<void> {
-    this.updateContext('specialty', 'Software Testing & Quality Assurance');
-    this.updateContext('expertise', ['Jest', 'Testing Library', 'Cypress', 'Playwright', 'Test Automation']);
-    this.updateContext('focus_areas', ['test-coverage', 'quality-assurance', 'automation', 'performance-testing']);
-    
-    this.swarmContext.set('testing_framework', 'jest');
-    this.swarmContext.set('e2e_framework', 'playwright');
-    this.swarmContext.set('coverage_target', 80);
+    if (this.swarmContext) {
+      this.updateContext('specialty', 'Software Testing & Quality Assurance');
+      this.updateContext('expertise', ['Jest', 'Testing Library', 'Cypress', 'Playwright', 'Test Automation']);
+      this.updateContext('focus_areas', ['test-coverage', 'quality-assurance', 'automation', 'performance-testing']);
+      
+      this.swarmContext.set('testing_framework', 'jest');
+      this.swarmContext.set('e2e_framework', 'playwright');
+      this.swarmContext.set('coverage_target', 80);
+    }
   }
 
   public async processSwarmTask(task: SwarmTask): Promise<AgentResponse> {
