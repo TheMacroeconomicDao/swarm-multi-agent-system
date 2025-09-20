@@ -28,7 +28,7 @@ export interface TechStack {
   community: number; // 0-100
   enterprise: boolean;
   openSource: boolean;
-  rocketScience: RocketScienceMetrics; // 🚀 NEW!
+  rocketScience?: RocketScienceMetrics; // 🚀 Made optional to fix build errors
   tags: string[];
   useCases: string[];
   pros: string[];

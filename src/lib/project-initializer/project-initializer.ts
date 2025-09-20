@@ -468,7 +468,7 @@ export class ProjectInitializer {
     configs.push({
       name: 'package.json',
       path: './package.json',
-      content: this.generatePackageJson(options),
+      content: await this.generatePackageJson(options),
       purpose: 'Project dependencies and scripts',
       environment: 'all'
     });
@@ -1016,8 +1016,8 @@ class _MyHomePageState extends State<MyHomePage> {
 }`;
   }
 
-  private generatePackageJson(options: ProjectInitializationOptions): string {
-    const dependencies = this.collectDependencies(options);
+  private async generatePackageJson(options: ProjectInitializationOptions): Promise<string> {
+    const dependencies = await this.collectDependencies(options);
     
     return `{
   "name": "${options.projectName}",
