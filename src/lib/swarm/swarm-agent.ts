@@ -35,8 +35,8 @@ export abstract class SwarmAgent extends BaseAgent {
   protected metrics: SwarmAgentMetrics;
   protected contextManager: ContextManager;
   protected qualityValidator: QualityValidator;
-  protected swarmContext: Map<string, any> = new Map();
-  protected collaborationHistory: Map<string, AgentResponse[]> = new Map();
+  protected swarmContext: Map<string, any>;
+  protected collaborationHistory: Map<string, AgentResponse[]>;
 
   constructor(
     id: string, 
@@ -62,10 +62,14 @@ export abstract class SwarmAgent extends BaseAgent {
       costEfficiency: 0
     };
 
-    this.initializeSwarmAgent();
+    // Swarm agent initialization will be done in initializeAgent()
   }
 
   protected initializeAgent(): void {
+    // Initialize swarm context first
+    this.swarmContext = new Map();
+    this.collaborationHistory = new Map();
+    
     this.initializeSwarmCapabilities();
     this.setupSwarmContext();
     console.log(`🐝 Swarm Agent initialized: ${this.role} (${this.id})`);

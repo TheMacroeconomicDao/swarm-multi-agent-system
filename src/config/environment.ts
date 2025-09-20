@@ -33,35 +33,46 @@ export interface EnvironmentConfig {
   };
 }
 
+// Helper function to safely get environment variables
+function getEnvVar(key: string, defaultValue: string = ''): string {
+  if (typeof window !== 'undefined' && (window as any).__ENV__) {
+    return (window as any).__ENV__[key] || defaultValue;
+  }
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key] || defaultValue;
+  }
+  return defaultValue;
+}
+
 export const environmentConfig: EnvironmentConfig = {
   openai: {
-    apiKey: process.env.OPENAI_API_KEY || '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',
-    baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-    defaultModel: process.env.OPENAI_DEFAULT_MODEL || 'gpt-4',
-    maxRetries: parseInt(process.env.OPENAI_MAX_RETRIES || '3'),
-    timeout: parseInt(process.env.OPENAI_TIMEOUT || '30000'),
-    costOptimization: process.env.OPENAI_COST_OPTIMIZATION !== 'false'
+    apiKey: getEnvVar('VITE_OPENAI_API_KEY', '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'),
+    baseURL: getEnvVar('VITE_OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+    defaultModel: getEnvVar('VITE_OPENAI_DEFAULT_MODEL', 'gpt-4'),
+    maxRetries: parseInt(getEnvVar('VITE_OPENAI_MAX_RETRIES', '3')),
+    timeout: parseInt(getEnvVar('VITE_OPENAI_TIMEOUT', '30000')),
+    costOptimization: getEnvVar('VITE_OPENAI_COST_OPTIMIZATION', 'true') !== 'false'
   },
   swarm: {
-    maxParallelExecutions: parseInt(process.env.SWARM_MAX_PARALLEL_EXECUTIONS || '5'),
-    qualityThreshold: parseInt(process.env.SWARM_QUALITY_THRESHOLD || '75'),
-    costOptimization: process.env.SWARM_COST_OPTIMIZATION !== 'false'
+    maxParallelExecutions: parseInt(getEnvVar('VITE_SWARM_MAX_PARALLEL_EXECUTIONS', '5')),
+    qualityThreshold: parseInt(getEnvVar('VITE_SWARM_QUALITY_THRESHOLD', '75')),
+    costOptimization: getEnvVar('VITE_SWARM_COST_OPTIMIZATION', 'true') !== 'false'
   },
   cost: {
-    dailyLimit: parseFloat(process.env.DAILY_COST_LIMIT || '50'),
-    monthlyLimit: parseFloat(process.env.MONTHLY_COST_LIMIT || '1000'),
-    warningThreshold: parseInt(process.env.COST_WARNING_THRESHOLD || '80'),
-    criticalThreshold: parseInt(process.env.COST_CRITICAL_THRESHOLD || '95')
+    dailyLimit: parseFloat(getEnvVar('VITE_DAILY_COST_LIMIT', '50')),
+    monthlyLimit: parseFloat(getEnvVar('VITE_MONTHLY_COST_LIMIT', '1000')),
+    warningThreshold: parseInt(getEnvVar('VITE_COST_WARNING_THRESHOLD', '80')),
+    criticalThreshold: parseInt(getEnvVar('VITE_COST_CRITICAL_THRESHOLD', '95'))
   },
   performance: {
-    requestTimeout: parseInt(process.env.REQUEST_TIMEOUT || '30000'),
-    maxRetries: parseInt(process.env.MAX_RETRIES || '3'),
-    rateLimitDelay: parseInt(process.env.RATE_LIMIT_DELAY || '100')
+    requestTimeout: parseInt(getEnvVar('VITE_REQUEST_TIMEOUT', '30000')),
+    maxRetries: parseInt(getEnvVar('VITE_MAX_RETRIES', '3')),
+    rateLimitDelay: parseInt(getEnvVar('VITE_RATE_LIMIT_DELAY', '100'))
   },
   development: {
-    nodeEnv: process.env.NODE_ENV || 'development',
-    appTitle: process.env.VITE_APP_TITLE || 'Vibe Coding Multi-Agent System',
-    debugMode: process.env.NODE_ENV === 'development'
+    nodeEnv: getEnvVar('NODE_ENV', 'development'),
+    appTitle: getEnvVar('VITE_APP_TITLE', 'Vibe Coding Multi-Agent System'),
+    debugMode: getEnvVar('NODE_ENV', 'development') === 'development'
   }
 };
 
