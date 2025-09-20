@@ -33,6 +33,8 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
   agentSystem
 }) => {
   const {
+    coordinator,
+    swarmCoordinator,
     agents,
     selectedAgent,
     setSelectedAgent,
@@ -464,6 +466,82 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
                   <p className="text-sm text-muted-foreground">Inter-agent efficiency</p>
                 </Card>
               </div>
+
+              {/* Swarm Metrics */}
+              <Card className="glass p-6">
+                <h3 className="text-xl font-semibold mb-4 gradient-text flex items-center">
+                  <Brain className="w-5 h-5 mr-2" />
+                  Swarm Intelligence Metrics
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="neuo-inset p-4 rounded-lg">
+                    <h4 className="font-semibold mb-2 text-sm">Total Tasks</h4>
+                    <div className="text-2xl font-bold text-primary">
+                      {swarmCoordinator?.getSwarmMetrics().totalTasks || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Completed: {swarmCoordinator?.getSwarmMetrics().completedTasks || 0}</p>
+                  </div>
+                  
+                  <div className="neuo-inset p-4 rounded-lg">
+                    <h4 className="font-semibold mb-2 text-sm">Quality Score</h4>
+                    <div className="text-2xl font-bold text-success">
+                      {Math.round(swarmCoordinator?.getSwarmMetrics().averageQuality || 0)}%
+                    </div>
+                    <p className="text-xs text-muted-foreground">Average quality</p>
+                  </div>
+                  
+                  <div className="neuo-inset p-4 rounded-lg">
+                    <h4 className="font-semibold mb-2 text-sm">Success Rate</h4>
+                    <div className="text-2xl font-bold text-accent">
+                      {Math.round((swarmCoordinator?.getSwarmMetrics().successRate || 0) * 100)}%
+                    </div>
+                    <p className="text-xs text-muted-foreground">Task completion</p>
+                  </div>
+                  
+                  <div className="neuo-inset p-4 rounded-lg">
+                    <h4 className="font-semibold mb-2 text-sm">Cost Efficiency</h4>
+                    <div className="text-2xl font-bold text-warning">
+                      {Math.round(swarmCoordinator?.getSwarmMetrics().costEfficiency || 0)}%
+                    </div>
+                    <p className="text-xs text-muted-foreground">Resource optimization</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Active Executions */}
+              <Card className="glass p-6">
+                <h3 className="text-xl font-semibold mb-4 gradient-text flex items-center">
+                  <Activity className="w-5 h-5 mr-2" />
+                  Active Swarm Executions
+                </h3>
+                <div className="space-y-3">
+                  {swarmCoordinator?.getActiveExecutions().length ? (
+                    swarmCoordinator.getActiveExecutions().map((execution) => (
+                      <div key={execution.id} className="flex items-center justify-between p-3 neuo-inset rounded-lg">
+                        <div>
+                          <div className="font-medium">{execution.taskId}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {execution.assignedAgents.length} agents • {execution.status}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium">
+                            Quality: {Math.round(execution.qualityScore)}%
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Cost: ${execution.cost.toFixed(4)}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center p-8 text-muted-foreground">
+                      <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No active swarm executions</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>

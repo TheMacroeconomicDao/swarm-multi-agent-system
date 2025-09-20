@@ -123,13 +123,18 @@ export class SwarmCoordinator extends BaseAgent {
       successPatterns: new Map()
     };
 
-    this.initializeSwarm();
+    this.initializeSwarmAgents();
   }
 
   protected initializeAgent(): void {
     this.setupSwarmIntelligence();
     this.initializePerformanceMonitoring();
     console.log('🐝 Swarm Coordinator initialized - Ready to orchestrate the agent swarm');
+  }
+
+  private initializeSwarmAgents(): void {
+    // Initialize swarm agents - this will be called by the main system
+    console.log('🐝 Swarm agents initialization ready');
   }
 
   protected async processTask(task: Task): Promise<AgentResponse> {
@@ -219,7 +224,7 @@ export class SwarmCoordinator extends BaseAgent {
     const agentAssignments = this.assignAgentsToSubtasks(task, availableAgents, domainExpertise);
     
     // Estimate costs and quality
-    const estimatedCost = this.costOptimizer.estimateExecutionCost(agentAssignments);
+    const estimatedCost = await this.costOptimizer.estimateExecutionCost(agentAssignments);
     const qualityTarget = this.calculateQualityTarget(task);
     const timeLimit = this.estimateTimeLimit(task, executionType);
     

@@ -4,11 +4,14 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { CoordinatorAgent } from '@/lib/agents/coordinator-agent';
 import { ArchitectAgent, DeveloperAgent, AnalystAgent } from '@/lib/agents/specialized-agents';
+import { SwarmCoordinator } from '@/lib/swarm/swarm-coordinator';
+import { FrontendSwarmAgent, BackendSwarmAgent, TestingSwarmAgent } from '@/lib/agents/swarm-specialized-agents';
 import { VibeCodeSession, AgentMessage, AgentState, AgentRole, Task, CodeFile } from '@/types/agents';
 
 interface UseAgentSystemReturn {
   // Agents
   coordinator: CoordinatorAgent;
+  swarmCoordinator: SwarmCoordinator;
   agents: AgentState[];
   selectedAgent: AgentState | null;
   setSelectedAgent: (agent: AgentState | null) => void;
@@ -47,20 +50,36 @@ interface SessionData {
 export const useAgentSystem = (): UseAgentSystemReturn => {
   // Initialize agents once using refs to prevent re-creation
   const coordinatorRef = useRef<CoordinatorAgent>();
+  const swarmCoordinatorRef = useRef<SwarmCoordinator>();
   const architectRef = useRef<ArchitectAgent>();
   const developerRef = useRef<DeveloperAgent>();
   const analystRef = useRef<AnalystAgent>();
+  const frontendSwarmRef = useRef<FrontendSwarmAgent>();
+  const backendSwarmRef = useRef<BackendSwarmAgent>();
+  const testingSwarmRef = useRef<TestingSwarmAgent>();
 
   if (!coordinatorRef.current) {
+    // Initialize traditional agents
     coordinatorRef.current = new CoordinatorAgent();
     architectRef.current = new ArchitectAgent();
     developerRef.current = new DeveloperAgent();
     analystRef.current = new AnalystAgent();
 
-    // Register agents with coordinator
+    // Initialize swarm coordinator and agents
+    swarmCoordinatorRef.current = new SwarmCoordinator();
+    frontendSwarmRef.current = new FrontendSwarmAgent();
+    backendSwarmRef.current = new BackendSwarmAgent();
+    testingSwarmRef.current = new TestingSwarmAgent();
+
+    // Register traditional agents with coordinator
     coordinatorRef.current.registerAgent(architectRef.current);
     coordinatorRef.current.registerAgent(developerRef.current);
     coordinatorRef.current.registerAgent(analystRef.current);
+
+    // Register swarm agents with swarm coordinator
+    swarmCoordinatorRef.current.registerSwarmAgent(frontendSwarmRef.current);
+    swarmCoordinatorRef.current.registerSwarmAgent(backendSwarmRef.current);
+    swarmCoordinatorRef.current.registerSwarmAgent(testingSwarmRef.current);
   }
 
   // State management
@@ -75,62 +94,18 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCodeWorkspaceOpen, setIsCodeWorkspaceOpen] = useState(false);
 
-  // Initialize mock data
+  // Initialize agent data
   useEffect(() => {
-    setAgents([
-      {
-        id: 'coordinator_main',
-        role: AgentRole.COORDINATOR,
-        status: 'idle',
-        performance: {
-          tasksCompleted: 127,
-          averageCompletionTime: 4.2,
-          successRate: 0.96,
-          collaborationRating: 0.94
-        },
-        lastActive: new Date(),
-        workload: 15
-      },
-      {
-        id: 'architect_01',
-        role: AgentRole.ARCHITECT,
-        status: 'thinking',
-        performance: {
-          tasksCompleted: 89,
-          averageCompletionTime: 8.7,
-          successRate: 0.91,
-          collaborationRating: 0.88
-        },
-        lastActive: new Date(),
-        workload: 65
-      },
-      {
-        id: 'developer_01',
-        role: AgentRole.DEVELOPER,
-        status: 'working',
-        performance: {
-          tasksCompleted: 203,
-          averageCompletionTime: 3.1,
-          successRate: 0.87,
-          collaborationRating: 0.92
-        },
-        lastActive: new Date(),
-        workload: 80
-      },
-      {
-        id: 'analyst_01',
-        role: AgentRole.ANALYST,
-        status: 'collaborating',
-        performance: {
-          tasksCompleted: 156,
-          averageCompletionTime: 6.3,
-          successRate: 0.93,
-          collaborationRating: 0.97
-        },
-        lastActive: new Date(),
-        workload: 45
-      }
-    ]);
+    // Get traditional agent status
+    const traditionalAgents = coordinatorRef.current?.getTeamStatus() || [];
+    
+    // Get swarm agent status
+    const swarmAgents = swarmCoordinatorRef.current?.getSwarmStatus() || [];
+    
+    // Combine all agents
+    const allAgents = [...traditionalAgents, ...swarmAgents];
+    
+    setAgents(allAgents);
   }, []);
 
   // Create new session with proper error handling
@@ -218,8 +193,23 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
       
       setMessages(prev => [...prev, userMessage]);
 
-      // Process through coordinator
-      const response = await coordinatorRef.current!.processVibeRequest(content, currentSession.id);
+      // Process through swarm coordinator for better results
+      const response = await swarmCoordinatorRef.current!.processTask({
+        id: `task_${Date.now()}`,
+        title: content,
+        description: content,
+        status: 'pending',
+        priority: 'medium',
+        dependencies: [],
+        subtasks: [],
+        estimatedComplexity: 5,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: {
+          requirements: [content],
+          constraints: []
+        }
+      });
       
       // Add agent response
       const agentResponse: AgentMessage = {
@@ -296,6 +286,7 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
 
   return {
     coordinator: coordinatorRef.current!,
+    swarmCoordinator: swarmCoordinatorRef.current!,
     agents,
     selectedAgent,
     setSelectedAgent,
