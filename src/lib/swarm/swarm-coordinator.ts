@@ -286,7 +286,7 @@ export class SwarmCoordinator extends BaseAgent {
       if (!agent) throw new Error(`Agent ${assignment.agentId} not found`);
       
       const startTime = Date.now();
-      const result = await agent.executeSwarmTask(assignment.subtask);
+        const result = await agent.processSwarmTask(assignment.subtask);
       const duration = Date.now() - startTime;
       
       return { result, duration, agentId: assignment.agentId };
@@ -316,7 +316,7 @@ export class SwarmCoordinator extends BaseAgent {
         const assignment = assignments[0];
         const agent = this.swarmAgents.get(assignment.agentId);
         if (agent) {
-          const result = await agent.executeSwarmTask(assignment.subtask);
+          const result = await agent.processSwarmTask(assignment.subtask);
           execution.results.push(result);
         }
       } else {
@@ -324,7 +324,7 @@ export class SwarmCoordinator extends BaseAgent {
         const promises = assignments.map(async (assignment: any) => {
           const agent = this.swarmAgents.get(assignment.agentId);
           if (!agent) throw new Error(`Agent ${assignment.agentId} not found`);
-          return agent.executeSwarmTask(assignment.subtask);
+          return agent.processSwarmTask(assignment.subtask);
         });
         
         const results = await Promise.allSettled(promises);
@@ -344,7 +344,7 @@ export class SwarmCoordinator extends BaseAgent {
       const agent = this.swarmAgents.get(assignment.agentId);
       if (!agent) continue;
       
-      const result = await agent.executeSwarmTask(assignment.subtask);
+      const result = await agent.processSwarmTask(assignment.subtask);
       execution.results.push(result);
     }
   }

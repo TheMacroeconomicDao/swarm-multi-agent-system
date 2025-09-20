@@ -98,8 +98,10 @@ export class ContextManager {
       dependencies: []
     };
 
-    context[`${category}History` as keyof SwarmContext] = 
-      (context[`${category}History` as keyof SwarmContext] as ContextItem[] || []).concat(item);
+    context[`${category}History`] = [
+      ...(context[`${category}History`] as ContextItem[] || []),
+      item
+    ];
     
     context.lastUpdated = new Date();
 

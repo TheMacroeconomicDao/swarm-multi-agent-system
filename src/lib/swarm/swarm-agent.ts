@@ -13,6 +13,14 @@ export interface SwarmTask {
   assignedAgent?: string;
   dependencies: string[];
   metadata?: Record<string, any>;
+  complexity?: number;
+  domain?: string[];
+  estimatedTime?: number;
+  subtasks?: any[];
+  context?: Record<string, any>;
+  requirements?: Record<string, any>;
+  constraints?: string[];
+  successCriteria?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +35,14 @@ export interface SwarmAgentCapabilities {
   canDocument: boolean;
   canDeploy: boolean;
   specializedSkills: string[];
+  domains?: string[];
+  languages?: string[];
+  frameworks?: string[];
+  tools?: string[];
+  maxComplexity?: number;
+  parallelTasks?: number;
+  specialization?: string[];
+  collaborationStyle?: string;
 }
 
 export interface SwarmAgentMetrics {

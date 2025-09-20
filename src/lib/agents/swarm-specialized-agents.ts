@@ -13,6 +13,15 @@ export class FrontendSwarmAgent extends SwarmAgent {
 
   constructor(id: string = 'frontend_swarm_01') {
     const capabilities: SwarmAgentCapabilities = {
+      canCoordinate: false,
+      canExecuteCode: true,
+      canAnalyzeRequirements: true,
+      canReview: true,
+      canOptimize: true,
+      canTest: false,
+      canDocument: true,
+      canDeploy: false,
+      specializedSkills: ['component-design', 'state-management', 'routing', 'styling'],
       domains: ['frontend', 'ui', 'ux', 'web'],
       languages: ['typescript', 'javascript', 'css', 'html'],
       frameworks: ['react', 'vue', 'angular', 'svelte', 'nextjs', 'nuxt'],
@@ -24,40 +33,41 @@ export class FrontendSwarmAgent extends SwarmAgent {
     };
 
     super(id, AgentRole.DEVELOPER, capabilities);
-    this.openaiClient = new OpenAIClient(openaiConfig);
+    this.openaiClient = new OpenAIClient({
+      ...openaiConfig,
+      fallbackModels: ['gpt-3.5-turbo', 'gpt-4-turbo-preview']
+    });
   }
 
-  protected initializeSwarmCapabilities(): void {
+  public async initializeAgent(): Promise<void> {
     this.updateContext('specialty', 'Frontend Development & UI/UX Implementation');
     this.updateContext('expertise', ['React', 'TypeScript', 'Tailwind CSS', 'Component Architecture']);
     this.updateContext('focus_areas', ['user-interface', 'user-experience', 'performance', 'accessibility']);
-  }
-
-  protected setupSwarmContext(): void {
+    
     this.swarmContext.set('current_framework', 'react');
     this.swarmContext.set('styling_approach', 'tailwind');
     this.swarmContext.set('state_management', 'context');
   }
 
-  protected async processSwarmTask(task: SwarmTask): Promise<AgentResponse> {
+  public async processSwarmTask(task: SwarmTask): Promise<AgentResponse> {
     console.log(`🎨 Frontend Swarm Agent processing: ${task.title}`);
     
     try {
-      // Analyze task requirements
       const requirements = this.analyzeFrontendRequirements(task);
-      
-      // Generate code based on requirements
       const codeResult = await this.generateFrontendCode(task, requirements);
-      
-      // Validate generated code
       const validation = await this.validateFrontendCode(codeResult.code);
       
-      return this.generateSwarmResponse(
-        task,
-        this.formatFrontendResponse(codeResult, validation),
-        codeResult.confidence,
-        `Generated ${requirements.type} component with ${requirements.framework}`
-      );
+      return {
+        agentId: this.id,
+        taskId: task.id,
+        response: {
+          type: 'code',
+          content: this.formatFrontendResponse(codeResult, validation),
+          confidence: codeResult.confidence,
+          reasoning: `Generated ${requirements.type} component with ${requirements.framework}`
+        },
+        nextActions: ['Review code', 'Test component', 'Deploy if approved']
+      };
       
     } catch (error) {
       console.error('Frontend task processing failed:', error);
@@ -65,12 +75,23 @@ export class FrontendSwarmAgent extends SwarmAgent {
     }
   }
 
-  protected async processTask(task: Task): Promise<AgentResponse> {
+  public async validateSwarmOutput(output: any): Promise<boolean> {
+    if (!output || typeof output !== 'object') return false;
+    if (!output.code || typeof output.code !== 'string') return false;
+    
+    // Basic validation for frontend code
+    const hasReactImport = output.code.includes('import React') || output.code.includes('from "react"');
+    const hasExport = output.code.includes('export');
+    
+    return hasReactImport && hasExport;
+  }
+
+  public async processTask(task: Task): Promise<AgentResponse> {
     const swarmTask = this.convertToSwarmTask(task);
     return this.processSwarmTask(swarmTask);
   }
 
-  protected async generateResponse(input: string, context: any): Promise<string> {
+  public async generateResponse(input: string, context: any): Promise<string> {
     const frontendContext = this.extractFrontendContext(input, context);
     return this.generateFrontendGuidance(frontendContext);
   }
@@ -110,7 +131,7 @@ export class FrontendSwarmAgent extends SwarmAgent {
     return await this.openaiClient.generateCode(prompt, context, {
       language: 'typescript',
       framework: requirements.framework,
-      complexity: task.complexity
+      complexity: task.complexity || 5
     });
   }
 
@@ -122,7 +143,6 @@ export class FrontendSwarmAgent extends SwarmAgent {
     const issues: string[] = [];
     const suggestions: string[] = [];
     
-    // Basic validation
     if (!code.includes('export')) {
       issues.push('Missing export statement');
     }
@@ -188,6 +208,7 @@ ${validation.suggestions.length > 0 ? `- Suggestions: ${validation.suggestions.j
     `.trim();
   }
 
+  // Helper methods
   private detectFramework(description: string): string {
     if (description.includes('vue')) return 'vue';
     if (description.includes('angular')) return 'angular';
@@ -259,11 +280,13 @@ What specific aspect would you like me to focus on?`;
       id: task.id,
       title: task.title,
       description: task.description,
+      priority: task.priority,
+      status: 'pending',
+      dependencies: task.dependencies,
+      metadata: task.metadata,
       complexity: task.estimatedComplexity,
       domain: ['frontend'],
-      priority: task.priority,
       estimatedTime: task.estimatedComplexity * 5,
-      dependencies: task.dependencies,
       subtasks: [],
       context: task.metadata || {},
       requirements: {
@@ -272,7 +295,7 @@ What specific aspect would you like me to focus on?`;
         security: 6,
         maintainability: 8
       },
-      constraints: task.metadata.constraints || [],
+      constraints: task.metadata?.constraints || [],
       successCriteria: ['Component renders correctly', 'Follows design system', 'Responsive design'],
       createdAt: task.createdAt,
       updatedAt: task.updatedAt
@@ -286,6 +309,15 @@ export class BackendSwarmAgent extends SwarmAgent {
 
   constructor(id: string = 'backend_swarm_01') {
     const capabilities: SwarmAgentCapabilities = {
+      canCoordinate: false,
+      canExecuteCode: true,
+      canAnalyzeRequirements: true,
+      canReview: true,
+      canOptimize: true,
+      canTest: false,
+      canDocument: true,
+      canDeploy: false,
+      specializedSkills: ['api-design', 'database-design', 'authentication', 'performance'],
       domains: ['backend', 'api', 'database', 'server'],
       languages: ['typescript', 'javascript', 'python', 'sql'],
       frameworks: ['express', 'fastify', 'nestjs', 'fastapi', 'django'],
@@ -297,22 +329,23 @@ export class BackendSwarmAgent extends SwarmAgent {
     };
 
     super(id, AgentRole.ENGINEER, capabilities);
-    this.openaiClient = new OpenAIClient(openaiConfig);
+    this.openaiClient = new OpenAIClient({
+      ...openaiConfig,
+      fallbackModels: ['gpt-3.5-turbo', 'gpt-4-turbo-preview']
+    });
   }
 
-  protected initializeSwarmCapabilities(): void {
+  public async initializeAgent(): Promise<void> {
     this.updateContext('specialty', 'Backend Development & API Design');
     this.updateContext('expertise', ['Node.js', 'Express', 'TypeScript', 'PostgreSQL', 'MongoDB']);
     this.updateContext('focus_areas', ['api-design', 'database-optimization', 'security', 'scalability']);
-  }
-
-  protected setupSwarmContext(): void {
+    
     this.swarmContext.set('current_framework', 'express');
     this.swarmContext.set('database', 'postgresql');
     this.swarmContext.set('orm', 'prisma');
   }
 
-  protected async processSwarmTask(task: SwarmTask): Promise<AgentResponse> {
+  public async processSwarmTask(task: SwarmTask): Promise<AgentResponse> {
     console.log(`🔧 Backend Swarm Agent processing: ${task.title}`);
     
     try {
@@ -320,12 +353,17 @@ export class BackendSwarmAgent extends SwarmAgent {
       const codeResult = await this.generateBackendCode(task, requirements);
       const validation = await this.validateBackendCode(codeResult.code);
       
-      return this.generateSwarmResponse(
-        task,
-        this.formatBackendResponse(codeResult, validation),
-        codeResult.confidence,
-        `Generated ${requirements.type} with ${requirements.framework}`
-      );
+      return {
+        agentId: this.id,
+        taskId: task.id,
+        response: {
+          type: 'code',
+          content: this.formatBackendResponse(codeResult, validation),
+          confidence: codeResult.confidence,
+          reasoning: `Generated ${requirements.type} with ${requirements.framework}`
+        },
+        nextActions: ['Review API', 'Test endpoints', 'Deploy if approved']
+      };
       
     } catch (error) {
       console.error('Backend task processing failed:', error);
@@ -333,12 +371,23 @@ export class BackendSwarmAgent extends SwarmAgent {
     }
   }
 
-  protected async processTask(task: Task): Promise<AgentResponse> {
+  public async validateSwarmOutput(output: any): Promise<boolean> {
+    if (!output || typeof output !== 'object') return false;
+    if (!output.code || typeof output.code !== 'string') return false;
+    
+    // Basic validation for backend code
+    const hasExport = output.code.includes('export');
+    const hasAsyncFunction = output.code.includes('async') || output.code.includes('function');
+    
+    return hasExport && hasAsyncFunction;
+  }
+
+  public async processTask(task: Task): Promise<AgentResponse> {
     const swarmTask = this.convertToSwarmTask(task);
     return this.processSwarmTask(swarmTask);
   }
 
-  protected async generateResponse(input: string, context: any): Promise<string> {
+  public async generateResponse(input: string, context: any): Promise<string> {
     return `🔧 **Backend Development Response**
 
 I can help you with backend development including:
@@ -378,7 +427,7 @@ What specific backend functionality do you need?`;
     return await this.openaiClient.generateCode(prompt, context, {
       language: 'typescript',
       framework: requirements.framework,
-      complexity: task.complexity
+      complexity: task.complexity || 5
     });
   }
 
@@ -471,11 +520,13 @@ ${validation.suggestions.length > 0 ? `- Suggestions: ${validation.suggestions.j
       id: task.id,
       title: task.title,
       description: task.description,
+      priority: task.priority,
+      status: 'pending',
+      dependencies: task.dependencies,
+      metadata: task.metadata,
       complexity: task.estimatedComplexity,
       domain: ['backend'],
-      priority: task.priority,
       estimatedTime: task.estimatedComplexity * 8,
-      dependencies: task.dependencies,
       subtasks: [],
       context: task.metadata || {},
       requirements: {
@@ -484,7 +535,7 @@ ${validation.suggestions.length > 0 ? `- Suggestions: ${validation.suggestions.j
         security: 9,
         maintainability: 8
       },
-      constraints: task.metadata.constraints || [],
+      constraints: task.metadata?.constraints || [],
       successCriteria: ['API endpoints work correctly', 'Proper error handling', 'Security standards met'],
       createdAt: task.createdAt,
       updatedAt: task.updatedAt
@@ -498,33 +549,43 @@ export class TestingSwarmAgent extends SwarmAgent {
 
   constructor(id: string = 'testing_swarm_01') {
     const capabilities: SwarmAgentCapabilities = {
-      domains: ['testing', 'quality-assurance', 'automation'],
-      languages: ['typescript', 'javascript', 'python'],
-      frameworks: ['jest', 'vitest', 'cypress', 'playwright', 'pytest'],
-      tools: ['testing-library', 'enzyme', 'mocha', 'chai'],
+      canCoordinate: false,
+      canExecuteCode: false,
+      canAnalyzeRequirements: true,
+      canReview: true,
+      canOptimize: false,
+      canTest: true,
+      canDocument: true,
+      canDeploy: false,
+      specializedSkills: ['unit-testing', 'integration-testing', 'e2e-testing', 'test-automation'],
+      domains: ['testing', 'quality-assurance', 'validation'],
+      languages: ['typescript', 'javascript'],
+      frameworks: ['jest', 'vitest', 'cypress', 'playwright', 'testing-library'],
+      tools: ['jest', 'vitest', 'cypress', 'playwright', 'supertest'],
       maxComplexity: 7,
       parallelTasks: 4,
-      specialization: ['unit-testing', 'integration-testing', 'e2e-testing', 'test-automation'],
-      collaborationStyle: 'methodical'
+      specialization: ['test-design', 'test-automation', 'coverage-analysis', 'ci-cd-integration'],
+      collaborationStyle: 'analytical'
     };
 
     super(id, AgentRole.TESTING, capabilities);
-    this.openaiClient = new OpenAIClient(openaiConfig);
+    this.openaiClient = new OpenAIClient({
+      ...openaiConfig,
+      fallbackModels: ['gpt-3.5-turbo', 'gpt-4-turbo-preview']
+    });
   }
 
-  protected initializeSwarmCapabilities(): void {
-    this.updateContext('specialty', 'Testing & Quality Assurance');
-    this.updateContext('expertise', ['Jest', 'Testing Library', 'Cypress', 'Playwright']);
-    this.updateContext('focus_areas', ['test-coverage', 'test-quality', 'automation', 'ci-cd']);
+  public async initializeAgent(): Promise<void> {
+    this.updateContext('specialty', 'Software Testing & Quality Assurance');
+    this.updateContext('expertise', ['Jest', 'Testing Library', 'Cypress', 'Playwright', 'Test Automation']);
+    this.updateContext('focus_areas', ['test-coverage', 'quality-assurance', 'automation', 'performance-testing']);
+    
+    this.swarmContext.set('testing_framework', 'jest');
+    this.swarmContext.set('e2e_framework', 'playwright');
+    this.swarmContext.set('coverage_target', 80);
   }
 
-  protected setupSwarmContext(): void {
-    this.swarmContext.set('test_framework', 'jest');
-    this.swarmContext.set('testing_library', 'testing-library');
-    this.swarmContext.set('e2e_framework', 'cypress');
-  }
-
-  protected async processSwarmTask(task: SwarmTask): Promise<AgentResponse> {
+  public async processSwarmTask(task: SwarmTask): Promise<AgentResponse> {
     console.log(`🧪 Testing Swarm Agent processing: ${task.title}`);
     
     try {
@@ -532,12 +593,17 @@ export class TestingSwarmAgent extends SwarmAgent {
       const testResult = await this.generateTests(task, requirements);
       const validation = await this.validateTests(testResult.tests);
       
-      return this.generateSwarmResponse(
-        task,
-        this.formatTestingResponse(testResult, validation),
-        testResult.confidence || 0.9,
-        `Generated ${requirements.type} tests with ${requirements.framework}`
-      );
+      return {
+        agentId: this.id,
+        taskId: task.id,
+        response: {
+          type: 'code',
+          content: this.formatTestingResponse(testResult, validation),
+          confidence: testResult.confidence,
+          reasoning: `Generated ${requirements.type} tests with ${requirements.framework}`
+        },
+        nextActions: ['Review tests', 'Run test suite', 'Check coverage']
+      };
       
     } catch (error) {
       console.error('Testing task processing failed:', error);
@@ -545,29 +611,40 @@ export class TestingSwarmAgent extends SwarmAgent {
     }
   }
 
-  protected async processTask(task: Task): Promise<AgentResponse> {
+  public async validateSwarmOutput(output: any): Promise<boolean> {
+    if (!output || typeof output !== 'object') return false;
+    if (!output.tests || typeof output.tests !== 'string') return false;
+    
+    // Basic validation for test code
+    const hasTestFramework = output.tests.includes('describe') || output.tests.includes('test') || output.tests.includes('it');
+    const hasAssertions = output.tests.includes('expect') || output.tests.includes('assert');
+    
+    return hasTestFramework && hasAssertions;
+  }
+
+  public async processTask(task: Task): Promise<AgentResponse> {
     const swarmTask = this.convertToSwarmTask(task);
     return this.processSwarmTask(swarmTask);
   }
 
-  protected async generateResponse(input: string, context: any): Promise<string> {
-    return `🧪 **Testing & QA Response**
+  public async generateResponse(input: string, context: any): Promise<string> {
+    return `🧪 **Testing & Quality Assurance Response**
 
-I can help you with:
+I can help you with software testing including:
 - Unit test generation and optimization
-- Integration test setup
-- E2E test automation
+- Integration test design
+- End-to-end test automation
 - Test coverage analysis
-- CI/CD pipeline testing
-- Performance testing
+- Performance testing strategies
+- CI/CD integration
 
-What type of testing do you need?`;
+What specific testing needs do you have?`;
   }
 
   private analyzeTestingRequirements(task: SwarmTask): {
     type: 'unit' | 'integration' | 'e2e' | 'performance';
     framework: string;
-    target: string;
+    coverage: number;
     features: string[];
   } {
     const description = task.description.toLowerCase();
@@ -575,35 +652,40 @@ What type of testing do you need?`;
     let type: 'unit' | 'integration' | 'e2e' | 'performance' = 'unit';
     if (description.includes('integration')) type = 'integration';
     if (description.includes('e2e') || description.includes('end-to-end')) type = 'e2e';
-    if (description.includes('performance')) type = 'performance';
+    if (description.includes('performance') || description.includes('load')) type = 'performance';
     
     const framework = this.detectTestingFramework(description);
-    const target = this.extractTestTarget(description);
+    const coverage = this.extractCoverageTarget(description);
     const features = this.extractTestingFeatures(description);
     
-    return { type, framework, target, features };
+    return { type, framework, coverage, features };
   }
 
   private async generateTests(task: SwarmTask, requirements: any): Promise<any> {
     const prompt = this.buildTestingPrompt(task, requirements);
+    const context = this.buildTestingContext(requirements);
     
-    return await this.openaiClient.generateTests(prompt, requirements.type, requirements.framework);
+    return await this.openaiClient.generateTests(
+      prompt,
+      requirements.type,
+      requirements.framework
+    );
   }
 
-  private async validateTests(testCode: string): Promise<any> {
+  private async validateTests(tests: string): Promise<any> {
     const issues: string[] = [];
     const suggestions: string[] = [];
     
-    if (!testCode.includes('describe') && !testCode.includes('test')) {
-      issues.push('Missing test structure');
+    if (!tests.includes('describe') && !tests.includes('test')) {
+      issues.push('Missing test structure (describe/test blocks)');
     }
     
-    if (!testCode.includes('expect')) {
+    if (!tests.includes('expect')) {
       issues.push('Missing assertions');
     }
     
-    if (testCode.includes('console.log')) {
-      suggestions.push('Remove console.log statements from tests');
+    if (tests.includes('only')) {
+      suggestions.push('Remove .only from tests before committing');
     }
     
     return { isValid: issues.length === 0, issues, suggestions };
@@ -615,11 +697,21 @@ What type of testing do you need?`;
 Description: ${task.description}
 
 Requirements:
+- Test Type: ${requirements.type}
 - Framework: ${requirements.framework}
-- Target: ${requirements.target}
+- Coverage Target: ${requirements.coverage}%
 - Features: ${requirements.features.join(', ')}
 
-Please generate comprehensive tests with good coverage.`;
+Please generate comprehensive tests with good coverage and clear assertions.`;
+  }
+
+  private buildTestingContext(requirements: any): string {
+    return `Testing setup:
+- Framework: ${requirements.framework}
+- Test Type: ${requirements.type}
+- Coverage Target: ${requirements.coverage}%
+- TypeScript enabled
+- Modern testing patterns preferred`;
   }
 
   private formatTestingResponse(testResult: any, validation: any): string {
@@ -639,6 +731,7 @@ ${validation.issues.length > 0 ? `- Issues: ${validation.issues.join(', ')}` : '
 ${validation.suggestions.length > 0 ? `- Suggestions: ${validation.suggestions.join(', ')}` : ''}
 
 **Quality Metrics:**
+- Confidence: ${(testResult.confidence * 100).toFixed(1)}%
 - Tokens Used: ${testResult.tokens}
 - Cost: $${testResult.cost.toFixed(4)}
     `.trim();
@@ -652,20 +745,18 @@ ${validation.suggestions.length > 0 ? `- Suggestions: ${validation.suggestions.j
     return 'jest';
   }
 
-  private extractTestTarget(description: string): string {
-    if (description.includes('component')) return 'component';
-    if (description.includes('api')) return 'api';
-    if (description.includes('service')) return 'service';
-    if (description.includes('function')) return 'function';
-    return 'component';
+  private extractCoverageTarget(description: string): number {
+    const match = description.match(/(\d+)%?\s*coverage/);
+    return match ? parseInt(match[1]) : 80;
   }
 
   private extractTestingFeatures(description: string): string[] {
     const features = [];
     if (description.includes('mock')) features.push('mocking');
-    if (description.includes('spy')) features.push('spying');
     if (description.includes('snapshot')) features.push('snapshot-testing');
-    if (description.includes('coverage')) features.push('coverage-analysis');
+    if (description.includes('async')) features.push('async-testing');
+    if (description.includes('component')) features.push('component-testing');
+    if (description.includes('api')) features.push('api-testing');
     return features;
   }
 
@@ -674,21 +765,23 @@ ${validation.suggestions.length > 0 ? `- Suggestions: ${validation.suggestions.j
       id: task.id,
       title: task.title,
       description: task.description,
+      priority: task.priority,
+      status: 'pending',
+      dependencies: task.dependencies,
+      metadata: task.metadata,
       complexity: task.estimatedComplexity,
       domain: ['testing'],
-      priority: task.priority,
       estimatedTime: task.estimatedComplexity * 3,
-      dependencies: task.dependencies,
       subtasks: [],
       context: task.metadata || {},
       requirements: {
-        codeQuality: 8,
+        codeQuality: 9,
         performance: 6,
         security: 7,
-        maintainability: 9
+        maintainability: 8
       },
-      constraints: task.metadata.constraints || [],
-      successCriteria: ['Tests pass', 'Good coverage', 'Clear assertions'],
+      constraints: task.metadata?.constraints || [],
+      successCriteria: ['Tests pass consistently', 'Good coverage achieved', 'Clear test structure'],
       createdAt: task.createdAt,
       updatedAt: task.updatedAt
     };

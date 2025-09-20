@@ -47,7 +47,7 @@ export interface Language {
   name: string;
   version: string;
   type: 'compiled' | 'interpreted' | 'hybrid';
-  paradigm: ('object-oriented' | 'functional' | 'procedural' | 'declarative')[];
+  paradigm: ('object-oriented' | 'functional' | 'procedural' | 'declarative' | 'quantum')[];
   performance: number;
   learningCurve: number;
   community: number;

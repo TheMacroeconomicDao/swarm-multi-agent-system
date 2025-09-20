@@ -756,9 +756,7 @@ export class ProjectInitializer {
     const errors = [];
 
     // Check for incompatible combinations
-    if (options.customizations.styling === 'tailwind' && options.customizations.styling === 'styled-components') {
-      errors.push('Cannot use both Tailwind CSS and Styled Components simultaneously.');
-    }
+    // Remove invalid comparison - properties cannot be equal to two different values
 
     return errors;
   }

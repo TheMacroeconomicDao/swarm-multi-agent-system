@@ -557,7 +557,7 @@ export const quantumComputingStack: TechStack = {
       name: 'Q#',
       version: '0.28.0',
       type: 'compiled',
-      paradigm: ['functional', 'quantum'],
+      paradigm: ['functional'],
       performance: 100,
       learningCurve: 95,
       community: 60,
