@@ -73,7 +73,21 @@ export enum AgentRole {
   ENGINEER = 'engineer',
   DEVELOPER = 'developer',
   REVIEWER = 'reviewer',
-  OPTIMIZER = 'optimizer'
+  OPTIMIZER = 'optimizer',
+  DEVOPS = 'devops',
+  SECURITY = 'security',
+  TESTING = 'testing',
+  UI_UX = 'ui_ux',
+  DATABASE = 'database',
+  API_SPECIALIST = 'api_specialist',
+  PERFORMANCE = 'performance',
+  DOCUMENTATION = 'documentation',
+  DEPLOYMENT = 'deployment',
+  MONITORING = 'monitoring',
+  AI_ML = 'ai_ml',
+  BLOCKCHAIN = 'blockchain',
+  MOBILE = 'mobile',
+  GAME_DEV = 'game_dev'
 }
 
 export interface CollaborationPattern {
