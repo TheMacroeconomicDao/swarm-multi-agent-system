@@ -71,7 +71,7 @@ export const environmentConfig: EnvironmentConfig = {
   },
   development: {
     nodeEnv: getEnvVar('NODE_ENV', 'development'),
-    appTitle: getEnvVar('VITE_APP_TITLE', 'Vibe Coding Multi-Agent System'),
+    appTitle: getEnvVar('VITE_APP_TITLE', 'Swarm Multiagent System'),
     debugMode: getEnvVar('NODE_ENV', 'development') === 'development'
   }
 };

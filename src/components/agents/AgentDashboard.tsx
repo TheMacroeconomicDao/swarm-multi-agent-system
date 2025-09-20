@@ -2,13 +2,14 @@
 // Ultra-modern 2025 UI with Glassmorphism + Neumorphism design
 
 import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AgentState, AgentRole, VibeCodeSession, CodeFile } from '@/types/agents';
-import { Brain, Zap, Users, Code, Activity, Sparkles, MessageSquare, FileCode, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Brain, Zap, Users, Code, Activity, Sparkles, MessageSquare, FileCode, AlertTriangle, CheckCircle, Clock, Rocket } from 'lucide-react';
 import { SessionModal } from './SessionModal';
 import { ChatWindow } from './ChatWindow';
 import { CodeWorkspace } from './CodeWorkspace';
@@ -32,6 +33,7 @@ interface SessionData {
 export const AgentDashboard: React.FC<AgentDashboardProps> = ({
   agentSystem
 }) => {
+  const navigate = useNavigate();
   const {
     coordinator,
     swarmCoordinator,
@@ -170,7 +172,7 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold gradient-text">
-                  🚀 Vibe Coding Multi-Agent System
+                  🚀 Swarm Multiagent System
                 </h1>
                 <p className="text-muted-foreground mt-2">
                   Revolutionary AI-powered collaborative development platform
@@ -188,6 +190,14 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
                 )}
               </div>
               <div className="flex space-x-3">
+                <Button 
+                  onClick={() => navigate('/rocket-science')}
+                  variant="outline"
+                  className="glass hover:bg-primary/10 transition-all duration-300"
+                >
+                  <Rocket className="w-4 h-4 mr-2" />
+                  Rocket Science Stacks
+                </Button>
                 <Button 
                   onClick={() => setIsChatOpen(true)}
                   className="neuo glow"

@@ -177,7 +177,7 @@ export class CoordinatorAgent extends BaseAgent {
     return results;
   }
 
-  // 🔄 Vibe Coding Session Management
+  // 🔄 Swarm Session Management
   public async startVibeSession(title: string, description: string): Promise<VibeCodeSession> {
     const session: VibeCodeSession = {
       id: `session_${Date.now()}`,
@@ -203,7 +203,7 @@ export class CoordinatorAgent extends BaseAgent {
     
     this.activeSessions.set(session.id, session);
     
-    console.log(`🌊 Vibe Coding Session started: ${title}`);
+    console.log(`🌊 Swarm Session started: ${title}`);
     return session;
   }
 

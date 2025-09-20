@@ -14,6 +14,12 @@ import {
   Tool,
   DeploymentOption
 } from '@/types/tech-stack';
+import { 
+  rocketScienceStacks, 
+  getRocketScienceRanking, 
+  getStacksByRocketScienceLevel,
+  calculateRocketScienceMetrics
+} from './rocket-science-stacks';
 
 export class TechStackManager {
   private techStacks: Map<string, TechStack> = new Map();
@@ -22,6 +28,7 @@ export class TechStackManager {
 
   constructor() {
     this.initializeTechStacks();
+    this.initializeRocketScienceStacks();
     this.initializeTemplates();
   }
 
@@ -40,6 +47,42 @@ export class TechStackManager {
 
   public getTechStacksByComplexity(complexity: string): TechStack[] {
     return this.getAllTechStacks().filter(stack => stack.complexity === complexity);
+  }
+
+  // 🚀 ROCKET SCIENCE METHODS
+  public getRocketScienceStacks(): TechStack[] {
+    return rocketScienceStacks;
+  }
+
+  public getRocketScienceRanking(): TechStack[] {
+    return getRocketScienceRanking();
+  }
+
+  public getStacksByRocketScienceLevel(level: 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'rocket-science'): TechStack[] {
+    return getStacksByRocketScienceLevel(level);
+  }
+
+  public getMostRocketScienceStack(): TechStack | null {
+    const ranking = this.getRocketScienceRanking();
+    return ranking.length > 0 ? ranking[0] : null;
+  }
+
+  public getStacksByRocketScienceScore(minScore: number): TechStack[] {
+    return this.getAllTechStacks()
+      .filter(stack => stack.rocketScience && stack.rocketScience.overall >= minScore)
+      .sort((a, b) => (b.rocketScience?.overall || 0) - (a.rocketScience?.overall || 0));
+  }
+
+  public getCuttingEdgeStacks(): TechStack[] {
+    return this.getAllTechStacks()
+      .filter(stack => stack.rocketScience && stack.rocketScience.cuttingEdge >= 80)
+      .sort((a, b) => (b.rocketScience?.cuttingEdge || 0) - (a.rocketScience?.cuttingEdge || 0));
+  }
+
+  public getFutureTechStacks(): TechStack[] {
+    return this.getAllTechStacks()
+      .filter(stack => stack.rocketScience && stack.rocketScience.futurePotential >= 90)
+      .sort((a, b) => (b.rocketScience?.futurePotential || 0) - (a.rocketScience?.futurePotential || 0));
   }
 
   // 🧠 Intelligent Recommendations
@@ -406,6 +449,17 @@ export class TechStackManager {
     ];
   }
 
+  // 🚀 Initialize Rocket Science Stacks
+  private initializeRocketScienceStacks(): void {
+    rocketScienceStacks.forEach(stack => {
+      // Calculate rocket science metrics if not already set
+      if (!stack.rocketScience) {
+        stack.rocketScience = calculateRocketScienceMetrics(stack);
+      }
+      this.techStacks.set(stack.id, stack);
+    });
+  }
+
   // 🏗️ Initialize Tech Stacks
   private initializeTechStacks(): void {
     // React/TypeScript Stack
@@ -486,6 +540,14 @@ export class TechStackManager {
       community: 98,
       enterprise: true,
       openSource: true,
+      rocketScience: {
+        innovation: 70,
+        complexity: 60,
+        cuttingEdge: 65,
+        futurePotential: 80,
+        coolness: 75,
+        overall: 70
+      },
       tags: ['frontend', 'react', 'typescript', 'modern', 'popular'],
       useCases: ['Web Applications', 'SPAs', 'Progressive Web Apps', 'Admin Dashboards'],
       pros: ['Excellent ecosystem', 'Strong community', 'Great performance', 'Type safety'],
