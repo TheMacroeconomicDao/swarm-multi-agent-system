@@ -247,8 +247,18 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
             </TabsList>
 
             <TabsContent value="agents" className="space-y-6">
+              {/* Agent Count Header */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold gradient-text">
+                  Agent Orchestra ({agents.length} Agents)
+                </h3>
+                <Badge variant="secondary" className="glass">
+                  {agents.filter(a => a.status === 'idle').length} Available
+                </Badge>
+              </div>
+              
               {/* Agent Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                 {agents.map((agent) => (
                   <Card 
                     key={agent.id}

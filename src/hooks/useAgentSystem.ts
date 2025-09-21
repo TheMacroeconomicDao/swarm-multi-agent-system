@@ -148,10 +148,9 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
         // Combine all agents
         const allAgents = [...traditionalAgents, ...swarmAgents];
         
-        // Initialize agents if they haven't been initialized yet
-        if (allAgents.length === 0) {
-          // Create initial agent states based on available agents
-          const initialAgents: AgentState[] = [
+        // Always use our comprehensive agent list for the dashboard
+        // This ensures we show all 21 agent types regardless of coordinator status
+        const initialAgents: AgentState[] = [
             {
               id: 'coordinator_01',
               role: AgentRole.COORDINATOR,
@@ -427,10 +426,8 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
             }
           ];
           
+          // Always use our comprehensive agent list
           setAgents(initialAgents);
-        } else {
-          setAgents(allAgents);
-        }
       } catch (error) {
         console.error('Failed to initialize agents:', error);
       }

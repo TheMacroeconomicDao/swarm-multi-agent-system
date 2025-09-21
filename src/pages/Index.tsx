@@ -67,8 +67,7 @@ const Index = () => {
                 </div>
                 
                 <h1 className="text-5xl md:text-7xl font-bold mb-6 gradient-text">
-                  Vibe Architects
-                  <span className="block text-4xl md:text-5xl text-accent">Unleashed</span>
+                  🚀 Swarm Multiagent System
                 </h1>
                 
                 <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-4xl mx-auto leading-relaxed">
@@ -160,7 +159,7 @@ const Index = () => {
               {/* Benefits Section */}
               <div className="mb-16">
                 <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 gradient-text">
-                  Why Choose Vibe Architects Unleashed?
+                  Why Choose 🚀 Swarm Multiagent System?
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -299,7 +298,7 @@ const Index = () => {
             <div className="container mx-auto px-4 py-8">
               <div className="text-center mb-12">
                 <h1 className="text-4xl md:text-5xl font-bold mb-6 gradient-text">
-                  Rocket Science Tech Stack
+                  🚀 Swarm Multiagent Tech Stack
                 </h1>
                 <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
                   Comprehensive technology ecosystem designed for cutting-edge research, 
