@@ -7,6 +7,12 @@ import { SwarmTask, SwarmAgentCapabilities } from '@/lib/swarm/swarm-agent';
 import { OpenAIClient } from '@/lib/ai/openai-client';
 import { openaiConfig } from '@/config/environment';
 
+// Export all specialized agents for easy importing
+export * from './production-agents';
+export * from './data-agents';
+export * from './specialized-domain-agents';
+export * from './operational-agents';
+
 // 🏗️ Frontend Swarm Agent
 export class FrontendSwarmAgent extends SwarmAgent {
   private openaiClient: OpenAIClient;
