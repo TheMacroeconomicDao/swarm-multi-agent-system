@@ -38,7 +38,7 @@ export interface Task {
   id: string;
   title: string;
   description: string;
-  status: 'pending' | 'in_progress' | 'blocked' | 'completed' | 'failed';
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
   priority: 'low' | 'medium' | 'high' | 'critical';
   assignedAgent?: string;
   dependencies: string[];

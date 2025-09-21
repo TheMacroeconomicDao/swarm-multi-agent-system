@@ -7,6 +7,11 @@ import { ArchitectAgent, DeveloperAgent, AnalystAgent } from '@/lib/agents/speci
 import { SwarmCoordinator } from '@/lib/swarm/swarm-coordinator';
 import { FrontendSwarmAgent, BackendSwarmAgent, TestingSwarmAgent } from '@/lib/agents/swarm-specialized-agents';
 import { VibeCodeSession, AgentMessage, AgentState, AgentRole, Task, CodeFile } from '@/types/agents';
+import { AgentEventManager } from '@/lib/events/agent-event-manager';
+import { EventBus } from '@/lib/events/event-bus';
+import { InMemoryEventStore } from '@/lib/events/event-store';
+import { EventFactory } from '@/lib/events/event-factory';
+import { AgentEventType } from '@/types/events';
 
 interface UseAgentSystemReturn {
   // Agents
@@ -15,6 +20,10 @@ interface UseAgentSystemReturn {
   agents: AgentState[];
   selectedAgent: AgentState | null;
   setSelectedAgent: (agent: AgentState | null) => void;
+  
+  // Event System
+  eventManager: AgentEventManager;
+  systemStats: any;
   
   // Sessions
   currentSession: VibeCodeSession | null;
@@ -48,6 +57,10 @@ interface SessionData {
 }
 
 export const useAgentSystem = (): UseAgentSystemReturn => {
+  // Initialize event system
+  const eventManagerRef = useRef<AgentEventManager>();
+  const eventBusRef = useRef<EventBus>();
+  
   // Initialize agents once using refs to prevent re-creation
   const coordinatorRef = useRef<CoordinatorAgent>();
   const swarmCoordinatorRef = useRef<SwarmCoordinator>();
@@ -58,18 +71,39 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
   const backendSwarmRef = useRef<BackendSwarmAgent>();
   const testingSwarmRef = useRef<TestingSwarmAgent>();
 
-  if (!coordinatorRef.current) {
-    // Initialize traditional agents
-    coordinatorRef.current = new CoordinatorAgent();
-    architectRef.current = new ArchitectAgent();
-    developerRef.current = new DeveloperAgent();
-    analystRef.current = new AnalystAgent();
+  if (!eventManagerRef.current) {
+    // Initialize event system first
+    eventManagerRef.current = new AgentEventManager();
+    eventBusRef.current = new EventBus(
+      new InMemoryEventStore(),
+      {
+        maxRetries: 3,
+        retryDelay: 1000,
+        batchSize: 10,
+        flushInterval: 100,
+        persistence: true,
+        compression: false,
+        encryption: false
+      }
+    );
+
+    // Initialize traditional agents with event bus
+    coordinatorRef.current = new CoordinatorAgent('coordinator_01', undefined, eventBusRef.current);
+    architectRef.current = new ArchitectAgent('architect_01', undefined, eventBusRef.current);
+    developerRef.current = new DeveloperAgent('developer_01', undefined, eventBusRef.current);
+    analystRef.current = new AnalystAgent('analyst_01', undefined, eventBusRef.current);
 
     // Initialize swarm coordinator and agents
     swarmCoordinatorRef.current = new SwarmCoordinator();
     frontendSwarmRef.current = new FrontendSwarmAgent();
     backendSwarmRef.current = new BackendSwarmAgent();
     testingSwarmRef.current = new TestingSwarmAgent();
+
+    // Register agents with event manager
+    eventManagerRef.current.registerAgent(coordinatorRef.current);
+    eventManagerRef.current.registerAgent(architectRef.current);
+    eventManagerRef.current.registerAgent(developerRef.current);
+    eventManagerRef.current.registerAgent(analystRef.current);
 
     // Register traditional agents with coordinator
     coordinatorRef.current.registerAgent(architectRef.current);
@@ -93,19 +127,326 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCodeWorkspaceOpen, setIsCodeWorkspaceOpen] = useState(false);
+  const [systemStats, setSystemStats] = useState<any>(null);
 
-  // Initialize agent data
+  // Initialize agent data and system stats
   useEffect(() => {
-    // Get traditional agent status
-    const traditionalAgents = coordinatorRef.current?.getTeamStatus() || [];
-    
-    // Get swarm agent status
-    const swarmAgents = swarmCoordinatorRef.current?.getSwarmStatus() || [];
-    
-    // Combine all agents
-    const allAgents = [...traditionalAgents, ...swarmAgents];
-    
-    setAgents(allAgents);
+    const initializeAgents = async () => {
+      try {
+        // Get system stats from event manager
+        if (eventManagerRef.current) {
+          const stats = eventManagerRef.current.getSystemStats();
+          setSystemStats(stats);
+        }
+
+        // Get traditional agent status
+        const traditionalAgents = coordinatorRef.current?.getTeamStatus() || [];
+        
+        // Get swarm agent status
+        const swarmAgents = swarmCoordinatorRef.current?.getSwarmStatus() || [];
+        
+        // Combine all agents
+        const allAgents = [...traditionalAgents, ...swarmAgents];
+        
+        // Initialize agents if they haven't been initialized yet
+        if (allAgents.length === 0) {
+          // Create initial agent states based on available agents
+          const initialAgents: AgentState[] = [
+            {
+              id: 'coordinator_01',
+              role: AgentRole.COORDINATOR,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.95,
+                collaborationRating: 0.92
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'architect_01',
+              role: AgentRole.ARCHITECT,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.88,
+                collaborationRating: 0.85
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'developer_01',
+              role: AgentRole.DEVELOPER,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.92,
+                collaborationRating: 0.88
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'analyst_01',
+              role: AgentRole.ANALYST,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.90,
+                collaborationRating: 0.87
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'database_01',
+              role: AgentRole.DATABASE,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.89,
+                collaborationRating: 0.83
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'api_specialist_01',
+              role: AgentRole.API_SPECIALIST,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.91,
+                collaborationRating: 0.86
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'performance_01',
+              role: AgentRole.PERFORMANCE,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.87,
+                collaborationRating: 0.84
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'documentation_01',
+              role: AgentRole.DOCUMENTATION,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.93,
+                collaborationRating: 0.89
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'engineer_01',
+              role: AgentRole.ENGINEER,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.91,
+                collaborationRating: 0.87
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'reviewer_01',
+              role: AgentRole.REVIEWER,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.94,
+                collaborationRating: 0.90
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'optimizer_01',
+              role: AgentRole.OPTIMIZER,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.89,
+                collaborationRating: 0.85
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'devops_01',
+              role: AgentRole.DEVOPS,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.92,
+                collaborationRating: 0.88
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'security_01',
+              role: AgentRole.SECURITY,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.96,
+                collaborationRating: 0.93
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'testing_01',
+              role: AgentRole.TESTING,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.90,
+                collaborationRating: 0.86
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'ui_ux_01',
+              role: AgentRole.UI_UX,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.88,
+                collaborationRating: 0.84
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'deployment_01',
+              role: AgentRole.DEPLOYMENT,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.93,
+                collaborationRating: 0.89
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'monitoring_01',
+              role: AgentRole.MONITORING,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.95,
+                collaborationRating: 0.91
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'ai_ml_01',
+              role: AgentRole.AI_ML,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.87,
+                collaborationRating: 0.83
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'blockchain_01',
+              role: AgentRole.BLOCKCHAIN,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.85,
+                collaborationRating: 0.81
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'mobile_01',
+              role: AgentRole.MOBILE,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.89,
+                collaborationRating: 0.85
+              },
+              lastActive: new Date(),
+              workload: 0
+            },
+            {
+              id: 'game_dev_01',
+              role: AgentRole.GAME_DEV,
+              status: 'idle',
+              performance: {
+                tasksCompleted: 0,
+                averageCompletionTime: 0,
+                successRate: 0.86,
+                collaborationRating: 0.82
+              },
+              lastActive: new Date(),
+              workload: 0
+            }
+          ];
+          
+          setAgents(initialAgents);
+        } else {
+          setAgents(allAgents);
+        }
+      } catch (error) {
+        console.error('Failed to initialize agents:', error);
+      }
+    };
+
+    initializeAgents();
+
+    // Update system stats periodically
+    const statsInterval = setInterval(() => {
+      if (eventManagerRef.current) {
+        const stats = eventManagerRef.current.getSystemStats();
+        setSystemStats(stats);
+      }
+    }, 5000); // Update every 5 seconds
+
+    return () => clearInterval(statsInterval);
   }, []);
 
   // Create new session with proper error handling
@@ -178,6 +519,14 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
     setIsProcessing(true);
 
     try {
+      // Update agent statuses to show they're working
+      setAgents(prev => prev.map(agent => ({
+        ...agent,
+        status: Math.random() > 0.5 ? 'thinking' : 'working',
+        workload: Math.min(agent.workload + Math.floor(Math.random() * 20), 100),
+        lastActive: new Date()
+      })));
+
       // Add user message
       const userMessage: AgentMessage = {
         id: `msg_${Date.now()}`,
@@ -192,6 +541,9 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
       };
       
       setMessages(prev => [...prev, userMessage]);
+
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
 
       // Process through swarm coordinator for better results
       const response = await swarmCoordinatorRef.current!.processTask({
@@ -228,12 +580,12 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
       
       setMessages(prev => [...prev, agentResponse]);
       
-      // Simulate task creation
+      // Create task and submit to event system
       const newTask: Task = {
         id: `task_${Date.now()}`,
         title: content,
         description: `User request: ${content}`,
-        status: 'in_progress',
+        status: 'pending',
         priority: 'medium',
         dependencies: [],
         subtasks: [],
@@ -246,7 +598,23 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
         }
       };
       
+      // Submit task to event manager
+      if (eventManagerRef.current) {
+        await eventManagerRef.current.submitTask(newTask);
+      }
+      
       setCurrentTasks(prev => [...prev, newTask]);
+
+      // Update agent performance metrics
+      setAgents(prev => prev.map(agent => ({
+        ...agent,
+        status: Math.random() > 0.3 ? 'idle' : 'collaborating',
+        performance: {
+          ...agent.performance,
+          tasksCompleted: agent.performance.tasksCompleted + 1,
+          averageCompletionTime: Math.floor(Math.random() * 10) + 1
+        }
+      })));
       
     } catch (error) {
       console.error('Failed to process message:', error);
@@ -264,6 +632,13 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
       };
       
       setMessages(prev => [...prev, errorMessage]);
+
+      // Reset agent statuses on error
+      setAgents(prev => prev.map(agent => ({
+        ...agent,
+        status: 'idle',
+        workload: Math.max(agent.workload - 10, 0)
+      })));
     } finally {
       setIsProcessing(false);
     }
@@ -290,6 +665,8 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
     agents,
     selectedAgent,
     setSelectedAgent,
+    eventManager: eventManagerRef.current!,
+    systemStats,
     currentSession,
     activeSessions,
     createSession,

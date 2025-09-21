@@ -77,6 +77,21 @@ export class DevOpsAgent extends SwarmAgent {
     }
   }
 
+  public async validateDevOpsOutput(output: any): Promise<boolean> {
+    // Validate DevOps solution output
+    if (!output || !output.solution) {
+      return false;
+    }
+    
+    // Check if solution contains required DevOps components
+    const requiredComponents = ['pipeline', 'deployment', 'monitoring'];
+    const hasRequiredComponents = requiredComponents.some(component => 
+      output.solution.toLowerCase().includes(component)
+    );
+    
+    return hasRequiredComponents && output.confidence > 0.7;
+  }
+
   public async validateSwarmOutput(output: any): Promise<boolean> {
     if (!output || typeof output !== 'object') return false;
     
@@ -123,7 +138,7 @@ export class DevOpsAgent extends SwarmAgent {
     const prompt = this.buildDevOpsPrompt(task, requirements);
     
     try {
-      const response = await this.openaiClient.chat({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 2000
@@ -530,7 +545,7 @@ export class UIUXAgent extends SwarmAgent {
     const designPrompt = this.buildDesignPrompt(task, research);
     
     try {
-      const response = await this.openaiClient.generateCompletion({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: designPrompt }],
         temperature: 0.4,
         maxTokens: 2000

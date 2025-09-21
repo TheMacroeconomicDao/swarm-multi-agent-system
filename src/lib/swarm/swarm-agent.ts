@@ -91,6 +91,10 @@ export abstract class SwarmAgent extends BaseAgent {
   public abstract processSwarmTask(task: SwarmTask): Promise<AgentResponse>;
   public abstract validateSwarmOutput(output: any): Promise<boolean>;
   
+  // Required abstract methods from BaseAgent
+  protected abstract processTask(task: Task): Promise<AgentResponse>;
+  protected abstract generateResponse(input: string, context: any): Promise<string>;
+  
   protected initializeAgent(): void {
     // Base initialization - swarm agents will override this safely
     if (this.swarmContext) {

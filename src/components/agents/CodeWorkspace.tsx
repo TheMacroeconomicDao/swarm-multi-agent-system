@@ -335,7 +335,7 @@ export const CodeWorkspace: React.FC<CodeWorkspaceProps> = ({
                                   <Badge className={`${
                                     task.status === 'completed' ? 'bg-green-500' :
                                     task.status === 'in_progress' ? 'bg-blue-500' :
-                                    task.status === 'blocked' ? 'bg-red-500' :
+                                    task.status === 'failed' ? 'bg-red-500' :
                                     'bg-muted'
                                   } text-white text-xs`}>
                                     {task.status}

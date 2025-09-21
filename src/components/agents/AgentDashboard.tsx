@@ -40,6 +40,8 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
     agents,
     selectedAgent,
     setSelectedAgent,
+    eventManager,
+    systemStats,
     currentSession,
     activeSessions,
     createSession,
@@ -454,17 +456,23 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
                     <CheckCircle className="w-4 h-4 mr-2 text-success" />
                     System Health
                   </h4>
-                  <div className="text-2xl font-bold text-success mb-2">98.5%</div>
-                  <p className="text-sm text-muted-foreground">All agents operational</p>
+                  <div className="text-2xl font-bold text-success mb-2">
+                    {agents.length > 0 ? Math.round(agents.filter(a => a.status !== 'idle').length / agents.length * 100) : 0}%
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {agents.filter(a => a.status !== 'idle').length} of {agents.length} agents active
+                  </p>
                 </Card>
                 
                 <Card className="glass p-6">
                   <h4 className="font-semibold mb-3 flex items-center">
                     <Zap className="w-4 h-4 mr-2 text-primary" />
-                    Processing Speed
+                    Average Workload
                   </h4>
-                  <div className="text-2xl font-bold text-primary mb-2">2.3s</div>
-                  <p className="text-sm text-muted-foreground">Average response time</p>
+                  <div className="text-2xl font-bold text-primary mb-2">
+                    {agents.length > 0 ? Math.round(agents.reduce((acc, agent) => acc + agent.workload, 0) / agents.length) : 0}%
+                  </div>
+                  <p className="text-sm text-muted-foreground">System utilization</p>
                 </Card>
                 
                 <Card className="glass p-6">
@@ -472,7 +480,9 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
                     <Users className="w-4 h-4 mr-2 text-accent" />
                     Collaboration Score
                   </h4>
-                  <div className="text-2xl font-bold text-accent mb-2">94%</div>
+                  <div className="text-2xl font-bold text-accent mb-2">
+                    {agents.length > 0 ? Math.round(agents.reduce((acc, agent) => acc + agent.performance.collaborationRating, 0) / agents.length * 100) : 0}%
+                  </div>
                   <p className="text-sm text-muted-foreground">Inter-agent efficiency</p>
                 </Card>
               </div>
@@ -481,65 +491,98 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
               <Card className="glass p-6">
                 <h3 className="text-xl font-semibold mb-4 gradient-text flex items-center">
                   <Brain className="w-5 h-5 mr-2" />
-                  Swarm Intelligence Metrics
+                  Event-Driven System Metrics
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="neuo-inset p-4 rounded-lg">
                     <h4 className="font-semibold mb-2 text-sm">Total Tasks</h4>
                     <div className="text-2xl font-bold text-primary">
-                      {swarmCoordinator?.getSwarmMetrics().totalTasks || 0}
+                      {systemStats?.totalTasks || currentTasks.length}
                     </div>
-                    <p className="text-xs text-muted-foreground">Completed: {swarmCoordinator?.getSwarmMetrics().completedTasks || 0}</p>
+                    <p className="text-xs text-muted-foreground">Pending: {systemStats?.pendingTasks || 0}</p>
                   </div>
                   
                   <div className="neuo-inset p-4 rounded-lg">
-                    <h4 className="font-semibold mb-2 text-sm">Quality Score</h4>
+                    <h4 className="font-semibold mb-2 text-sm">Available Agents</h4>
                     <div className="text-2xl font-bold text-success">
-                      {Math.round(swarmCoordinator?.getSwarmMetrics().averageQuality || 0)}%
+                      {systemStats?.availableAgents || agents.filter(a => a.status === 'idle').length}
                     </div>
-                    <p className="text-xs text-muted-foreground">Average quality</p>
+                    <p className="text-xs text-muted-foreground">Ready for tasks</p>
                   </div>
                   
                   <div className="neuo-inset p-4 rounded-lg">
-                    <h4 className="font-semibold mb-2 text-sm">Success Rate</h4>
+                    <h4 className="font-semibold mb-2 text-sm">Event Subscriptions</h4>
                     <div className="text-2xl font-bold text-accent">
-                      {Math.round((swarmCoordinator?.getSwarmMetrics().successRate || 0) * 100)}%
+                      {systemStats?.eventStats?.totalSubscriptions || 0}
                     </div>
-                    <p className="text-xs text-muted-foreground">Task completion</p>
+                    <p className="text-xs text-muted-foreground">Active listeners</p>
                   </div>
                   
                   <div className="neuo-inset p-4 rounded-lg">
-                    <h4 className="font-semibold mb-2 text-sm">Cost Efficiency</h4>
+                    <h4 className="font-semibold mb-2 text-sm">Event Queue</h4>
                     <div className="text-2xl font-bold text-warning">
-                      {Math.round(swarmCoordinator?.getSwarmMetrics().costEfficiency || 0)}%
+                      {systemStats?.eventStats?.queueSize || 0}
                     </div>
-                    <p className="text-xs text-muted-foreground">Resource optimization</p>
+                    <p className="text-xs text-muted-foreground">Processing queue</p>
                   </div>
                 </div>
               </Card>
 
-              {/* Active Executions */}
+              {/* P2P Network Status */}
+              <Card className="glass p-6">
+                <h3 className="text-xl font-semibold mb-4 gradient-text flex items-center">
+                  <Zap className="w-5 h-5 mr-2" />
+                  P2P Network Status
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="neuo-inset p-4 rounded-lg">
+                    <h4 className="font-semibold mb-2 text-sm">Network Health</h4>
+                    <div className="text-2xl font-bold text-success">
+                      {systemStats?.networkHealth || 95}%
+                    </div>
+                    <p className="text-xs text-muted-foreground">Overall status</p>
+                  </div>
+                  
+                  <div className="neuo-inset p-4 rounded-lg">
+                    <h4 className="font-semibold mb-2 text-sm">Connected Peers</h4>
+                    <div className="text-2xl font-bold text-primary">
+                      {systemStats?.connectedPeers || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Active connections</p>
+                  </div>
+                  
+                  <div className="neuo-inset p-4 rounded-lg">
+                    <h4 className="font-semibold mb-2 text-sm">Message Throughput</h4>
+                    <div className="text-2xl font-bold text-accent">
+                      {systemStats?.messageThroughput || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Messages/sec</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Active Tasks */}
               <Card className="glass p-6">
                 <h3 className="text-xl font-semibold mb-4 gradient-text flex items-center">
                   <Activity className="w-5 h-5 mr-2" />
-                  Active Swarm Executions
+                  Active Tasks
                 </h3>
                 <div className="space-y-3">
-                  {swarmCoordinator?.getActiveExecutions().length ? (
-                    swarmCoordinator.getActiveExecutions().map((execution) => (
-                      <div key={execution.id} className="flex items-center justify-between p-3 neuo-inset rounded-lg">
+                  {currentTasks.length > 0 ? (
+                    currentTasks.map((task) => (
+                      <div key={task.id} className="flex items-center justify-between p-3 neuo-inset rounded-lg">
                         <div>
-                          <div className="font-medium">{execution.taskId}</div>
+                          <div className="font-medium">{task.title}</div>
                           <div className="text-sm text-muted-foreground">
-                            {execution.assignedAgents.length} agents • {execution.status}
+                            {task.assignedAgent || 'Unassigned'} • {task.status}
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-medium">
-                            Quality: {Math.round(execution.qualityScore)}%
+                            Priority: {task.priority}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            Cost: ${execution.cost.toFixed(4)}
+                            Complexity: {task.estimatedComplexity}/10
                           </div>
                         </div>
                       </div>
@@ -547,7 +590,7 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
                   ) : (
                     <div className="text-center p-8 text-muted-foreground">
                       <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No active swarm executions</p>
+                      <p>No active tasks</p>
                     </div>
                   )}
                 </div>

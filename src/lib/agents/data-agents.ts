@@ -86,6 +86,30 @@ export class DatabaseAgent extends SwarmAgent {
     return hasValidSchema && hasPerformanceConsiderations;
   }
 
+  protected async processTask(task: Task): Promise<AgentResponse> {
+    const swarmTask = this.convertToSwarmTask(task);
+    return this.processSwarmTask(swarmTask);
+  }
+
+  protected async generateResponse(input: string, context: any): Promise<string> {
+    try {
+      const response = await this.openaiClient.chatCompletion({
+        model: 'gpt-4',
+        messages: [
+          { role: 'system', content: 'You are a database expert. Provide clear, actionable database solutions.' },
+          { role: 'user', content: input }
+        ],
+        temperature: 0.3,
+        max_tokens: 1000
+      });
+      
+      return response.choices[0].message.content;
+    } catch (error) {
+      console.error('Database agent response generation failed:', error);
+      return 'Unable to generate database solution at this time.';
+    }
+  }
+
   private analyzeDatabaseRequirements(task: SwarmTask) {
     return {
       type: this.determineDatabaseType(task),
@@ -100,7 +124,7 @@ export class DatabaseAgent extends SwarmAgent {
     const schemaPrompt = this.buildSchemaPrompt(task, analysis);
     
     try {
-      const response = await this.openaiClient.generateCompletion({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: schemaPrompt }],
         temperature: 0.2,
         maxTokens: 2500
@@ -355,7 +379,7 @@ export class APISpecialistAgent extends SwarmAgent {
     const designPrompt = this.buildAPIDesignPrompt(task, requirements);
     
     try {
-      const response = await this.openaiClient.generateCompletion({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: designPrompt }],
         temperature: 0.3,
         maxTokens: 2500
@@ -585,7 +609,7 @@ export class PerformanceAgent extends SwarmAgent {
     const optimizationPrompt = this.buildOptimizationPrompt(task, analysis);
     
     try {
-      const response = await this.openaiClient.generateCompletion({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: optimizationPrompt }],
         temperature: 0.2,
         maxTokens: 2000

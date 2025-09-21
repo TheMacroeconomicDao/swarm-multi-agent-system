@@ -101,7 +101,7 @@ export class AIMachineLearningAgent extends SwarmAgent {
     const pipelinePrompt = this.buildMLPipelinePrompt(task, requirements);
     
     try {
-      const response = await this.openaiClient.generateCompletion({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: pipelinePrompt }],
         temperature: 0.3,
         maxTokens: 2500
@@ -341,7 +341,7 @@ export class BlockchainAgent extends SwarmAgent {
     const blockchainPrompt = this.buildBlockchainPrompt(task, requirements);
     
     try {
-      const response = await this.openaiClient.generateCompletion({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: blockchainPrompt }],
         temperature: 0.2,
         maxTokens: 2500
@@ -572,7 +572,7 @@ export class MobileAgent extends SwarmAgent {
     const mobilePrompt = this.buildMobilePrompt(task, requirements);
     
     try {
-      const response = await this.openaiClient.generateCompletion({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: mobilePrompt }],
         temperature: 0.3,
         maxTokens: 2500
@@ -818,7 +818,7 @@ export class GameDevAgent extends SwarmAgent {
     const gamePrompt = this.buildGamePrompt(task, gameDesign);
     
     try {
-      const response = await this.openaiClient.generateCompletion({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: gamePrompt }],
         temperature: 0.4,
         maxTokens: 3000

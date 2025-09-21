@@ -101,7 +101,7 @@ export class DocumentationAgent extends SwarmAgent {
     const docPrompt = this.buildDocumentationPrompt(task, analysis);
     
     try {
-      const response = await this.openaiClient.generateCompletion({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: docPrompt }],
         temperature: 0.3,
         maxTokens: 3000
@@ -347,7 +347,7 @@ export class DeploymentAgent extends SwarmAgent {
     const pipelinePrompt = this.buildDeploymentPrompt(task, strategy);
     
     try {
-      const response = await this.openaiClient.generateCompletion({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: pipelinePrompt }],
         temperature: 0.2,
         maxTokens: 2500
@@ -598,7 +598,7 @@ export class MonitoringAgent extends SwarmAgent {
     const monitoringPrompt = this.buildMonitoringPrompt(task, requirements);
     
     try {
-      const response = await this.openaiClient.generateCompletion({
+      const response = await this.openaiClient.chatCompletion({
         messages: [{ role: 'user', content: monitoringPrompt }],
         temperature: 0.3,
         maxTokens: 2500

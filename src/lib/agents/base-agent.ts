@@ -2,6 +2,9 @@
 // Advanced AI Agent with Context Engineering & Memory Management
 
 import { AgentMessage, AgentContext, Task, AgentResponse, AgentRole, VibeCodeSession } from '@/types/agents';
+import { EventBus } from '@/lib/events/event-bus';
+import { EventFactory } from '@/lib/events/event-factory';
+import { AgentEventType } from '@/types/events';
 
 export abstract class BaseAgent {
   protected id: string;
@@ -9,10 +12,12 @@ export abstract class BaseAgent {
   protected context: AgentContext;
   protected isActive: boolean = false;
   protected collaborationHistory: Map<string, AgentMessage[]> = new Map();
+  protected eventBus?: EventBus;
 
-  constructor(id: string, role: AgentRole, initialContext: Partial<AgentContext> = {}) {
+  constructor(id: string, role: AgentRole, initialContext: Partial<AgentContext> = {}, eventBus?: EventBus) {
     this.id = id;
     this.role = role;
+    this.eventBus = eventBus;
     this.context = {
       taskHistory: [],
       currentObjective: '',
@@ -258,14 +263,51 @@ export abstract class BaseAgent {
     const startTime = Date.now();
     
     try {
+      // Emit task started event
+      if (this.eventBus) {
+        const taskStartedEvent = EventFactory.createCustomEvent(
+          AgentEventType.TASK_STARTED,
+          { taskId: task.id, taskTitle: task.title },
+          this.id,
+          undefined,
+          task.id
+        );
+        await this.eventBus.publish(taskStartedEvent);
+      }
+      
       const response = await this.processTask(task);
       const completionTime = Date.now() - startTime;
       
       this.updatePerformanceMetrics(task, true, completionTime);
+      
+      // Emit task completed event
+      if (this.eventBus) {
+        const taskCompletedEvent = EventFactory.createTaskCompletedEvent(
+          task,
+          response,
+          completionTime,
+          this.id,
+          task.id
+        );
+        await this.eventBus.publish(taskCompletedEvent);
+      }
+      
       return response;
     } catch (error) {
       const completionTime = Date.now() - startTime;
       this.updatePerformanceMetrics(task, false, completionTime);
+      
+      // Emit task failed event
+      if (this.eventBus) {
+        const taskFailedEvent = EventFactory.createTaskFailedEvent(
+          task,
+          error instanceof Error ? error.message : 'Unknown error',
+          this.id,
+          task.id
+        );
+        await this.eventBus.publish(taskFailedEvent);
+      }
+      
       throw error;
     } finally {
       this.isActive = false;
