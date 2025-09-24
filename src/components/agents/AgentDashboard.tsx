@@ -2,6 +2,7 @@
 // Ultra-modern 2025 UI with Glassmorphism + Neumorphism design
 
 import React, { useState, useCallback } from 'react';
+import { safeFormatTime } from '@/lib/utils/date-utils';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -333,7 +334,7 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
                         </div>
                         <div className="flex justify-between">
                           <span>Last Active</span>
-                          <span className="font-medium">{selectedAgent.lastActive.toLocaleTimeString()}</span>
+                          <span className="font-medium">{safeFormatTime(selectedAgent.lastActive)}</span>
                         </div>
                       </div>
                     </div>

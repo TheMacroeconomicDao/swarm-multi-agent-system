@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puter.js Integration Demo - Multiagent IDE</title>
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #1a1a1a; 
+            color: #fff; 
+        }
+        .container { background: #2a2a2a; padding: 20px; border-radius: 10px; margin: 10px 0; }
+        button { 
+            background: #4a9eff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        button:hover { background: #3a8eef; }
+        button:disabled { background: #666; cursor: not-allowed; }
+        textarea { width: 100%; padding: 10px; border-radius: 5px; background: #3a3a3a; color: #fff; border: 1px solid #555; }
+        .output { 
+            background: #0a0a0a; 
+            padding: 15px; 
+            border-radius: 5px; 
+            font-family: monospace; 
+            white-space: pre-wrap; 
+            max-height: 400px; 
+            overflow-y: auto; 
+            border-left: 4px solid #4a9eff;
+        }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+        .warning { color: #fbbf24; }
+        .info { color: #60a5fa; }
+        h1 { color: #4a9eff; text-align: center; }
+        h2 { color: #60a5fa; border-bottom: 2px solid #4a9eff; padding-bottom: 5px; }
+        .status { padding: 10px; border-radius: 5px; margin: 10px 0; font-weight: bold; }
+        .status.success { background: #065f46; color: #4ade80; }
+        .status.error { background: #7f1d1d; color: #f87171; }
+        .status.warning { background: #78350f; color: #fbbf24; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Puter.js Integration Demo - Multiagent IDE</h1>
+    <div class="status" id="puterStatus">📡 Проверка доступности Puter.js...</div>
+    
+    <!-- Basic AI Chat Demo -->
+    <div class="container">
+        <h2>1. 🤖 Basic AI Chat</h2>
+        <p>Тест базовых AI моделей согласно документации Puter.js</p>
+        <textarea id="chatPrompt" rows="3" placeholder="Введите ваш вопрос...">Объясни квантовую физику простыми словами</textarea>
+        <div>
+            <select id="modelSelect">
+                <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
+                <option value="claude-sonnet-4">Claude Sonnet 4</option>
+                <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
+                <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</option>
+                <option value="deepseek/deepseek-chat">DeepSeek Chat</option>
+            </select>
+            <button onclick="testBasicChat()">🚀 Test Chat</button>
+            <button onclick="testStreamingChat()">⚡ Test Streaming</button>
+        </div>
+        <div class="output" id="chatOutput">Ожидание теста...</div>
+    </div>
+
+    <!-- Image Analysis Demo -->
+    <div class="container">
+        <h2>2. 🖼️ Image Analysis</h2>
+        <p>Тест анализа изображений с vision моделями</p>
+        <input type="text" id="imageUrl" placeholder="URL изображения" value="https://assets.puter.site/doge.jpeg" style="width: 70%; padding: 10px; margin: 5px;">
+        <button onclick="testImageAnalysis()">🔍 Analyze Image</button>
+        <div class="output" id="imageOutput">Ожидание анализа изображения...</div>
+    </div>
+
+    <!-- Function Calling Demo -->
+    <div class="container">
+        <h2>3. 🛠️ Function Calling (Agentic AI)</h2>
+        <p>Тест function calling для создания агентов</p>
+        <textarea id="functionPrompt" rows="2" placeholder="Вопрос для агента...">Какая сегодня погода в Париже?</textarea>
+        <button onclick="testFunctionCalling()">⚙️ Test Agent Function</button>
+        <div class="output" id="functionOutput">Ожидание теста function calling...</div>
+    </div>
+
+    <!-- Model Availability -->
+    <div class="container">
+        <h2>4. 📊 Model Availability Test</h2>
+        <p>Проверка доступности различных AI моделей</p>
+        <button onclick="testAllModels()">🧪 Test All Models</button>
+        <div class="output" id="modelsOutput">Ожидание теста моделей...</div>
+    </div>
+
+    <!-- Performance & Error Handling -->
+    <div class="container">
+        <h2>5. ⚡ Performance & Error Tests</h2>
+        <p>Тест производительности и обработки ошибок</p>
+        <button onclick="testPerformance()">📊 Performance Test</button>
+        <button onclick="testErrorHandling()">❌ Error Handling Test</button>
+        <div class="output" id="performanceOutput">Ожидание тестов производительности...</div>
+    </div>
+
+    <script>
+        // Initialize Demo
+        document.addEventListener('DOMContentLoaded', function() {
+            checkPuterAvailability();
+        });
+
+        // Check Puter.js Availability
+        function checkPuterAvailability() {
+            const status = document.getElementById('puterStatus');
+            
+            if (typeof window.puter === 'undefined') {
+                status.className = 'status error';
+                status.innerHTML = '❌ Puter.js НЕ ЗАГРУЖЕН! Проверьте подключение скрипта.';
+                return;
+            }
+            
+            if (!window.puter.ai || typeof window.puter.ai.chat !== 'function') {
+                status.className = 'status warning';
+                status.innerHTML = '⚠️ Puter.ai модуль недоступен. Проверьте версию скрипта.';
+                return;
+            }
+            
+            status.className = 'status success';
+            status.innerHTML = '✅ Puter.js успешно загружен! AI модуль доступен. 400+ моделей готовы к работе.';
+        }
+
+        // Basic AI Chat Test
+        async function testBasicChat() {
+            const output = document.getElementById('chatOutput');
+            const prompt = document.getElementById('chatPrompt').value;
+            const model = document.getElementById('modelSelect').value;
+            
+            if (!prompt.trim()) {
+                output.innerHTML = '<span class="error">❌ Введите prompt для тестирования</span>';
+                return;
+            }
+            
+            output.innerHTML = '<span class="info">🤖 Отправка запроса к ' + model + '...</span>';
+            
+            try {
+                const startTime = Date.now();
+                
+                // Правильный API вызов согласно документации Claude API
+                const response = await window.puter.ai.chat(prompt, {
+                    model: model,
+                    temperature: 0.7,
+                    max_tokens: 500
+                });
+                
+                const responseTime = Date.now() - startTime;
+                
+                console.log('🔍 Raw response:', response);
+                console.log('🔍 Response type:', typeof response);
+                console.log('🔍 Response structure:', JSON.stringify(response, null, 2));
+                
+                // Обработка ответа согласно документации Claude API
+                let content = '';
+                if (typeof response === 'string') {
+                    content = response;
+                } else if (response?.message?.content) {
+                    if (Array.isArray(response.message.content)) {
+                        content = response.message.content[0]?.text || response.message.content[0] || '';
+                    } else {
+                        content = response.message.content;
+                    }
+                } else if (response?.success === false) {
+                    // Обработка ошибки
+                    throw new Error(`Puter API Error: ${JSON.stringify(response.error)}`);
+                } else {
+                    content = JSON.stringify(response, null, 2);
+                }
+                
+                output.innerHTML = `<span class="success">✅ Успешно! (${responseTime}ms)</span>
+<span class="info">📝 Model: ${model}</span>
+<span class="info">❓ Prompt: ${prompt}</span>
+<span class="success">🤖 Response:</span>
+${content}`;
+                
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Ошибка: ${error.message}</span>
+<span class="warning">🔍 Детали ошибки:</span>
+${JSON.stringify(error, null, 2)}`;
+            }
+        }
+
+        // Streaming Chat Test
+        async function testStreamingChat() {
+            const output = document.getElementById('chatOutput');
+            const prompt = document.getElementById('chatPrompt').value;
+            const model = document.getElementById('modelSelect').value;
+            
+            if (!prompt.trim()) {
+                output.innerHTML = '<span class="error">❌ Введите prompt для стриминг теста</span>';
+                return;
+            }
+            
+            output.innerHTML = '<span class="info">⚡ Стриминг ответ от ' + model + '...</span>\n';
+            
+            try {
+                const messages = [{ role: 'user', content: prompt }];
+                const response = await window.puter.ai.chat(messages, {
+                    model: model,
+                    stream: true,
+                    temperature: 0.7,
+                    max_tokens: 300
+                });
+                
+                let streamedContent = '';
+                for await (const part of response) {
+                    if (part?.text) {
+                        streamedContent += part.text;
+                        output.innerHTML = `<span class="success">⚡ Стриминг активен...</span>
+<span class="info">📝 Model: ${model}</span>
+<span class="success">🤖 Ответ (в реальном времени):</span>
+${streamedContent}`;
+                    }
+                }
+                
+                output.innerHTML = `<span class="success">✅ Стриминг завершен!</span>
+<span class="info">📝 Model: ${model}</span>
+<span class="success">🤖 Полный ответ:</span>
+${streamedContent}`;
+                
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Ошибка стриминга: ${error.message}</span>`;
+            }
+        }
+
+        // Image Analysis Test
+        async function testImageAnalysis() {
+            const output = document.getElementById('imageOutput');
+            const imageUrl = document.getElementById('imageUrl').value;
+            
+            if (!imageUrl.trim()) {
+                output.innerHTML = '<span class="error">❌ Введите URL изображения</span>';
+                return;
+            }
+            
+            output.innerHTML = '<span class="info">🔍 Анализ изображения с Claude Sonnet 4...</span>';
+            
+            try {
+                // Используем модель с поддержкой vision - messages format
+                const messages = [{
+                    role: 'user', 
+                    content: "Describe this image in detail. What objects, people, or scenes do you see?",
+                    images: [imageUrl]
+                }];
+                const response = await window.puter.ai.chat(messages, { 
+                    model: "claude-sonnet-4" 
+                });
+                
+                let content = '';
+                if (typeof response === 'string') {
+                    content = response;
+                } else if (response?.message?.content) {
+                    content = Array.isArray(response.message.content) ? 
+                        response.message.content[0]?.text : 
+                        response.message.content;
+                }
+                
+                output.innerHTML = `<span class="success">✅ Анализ изображения завершен!</span>
+<span class="info">🖼️ URL: ${imageUrl}</span>
+<span class="info">🤖 Model: Claude Sonnet 4 (Vision)</span>
+<span class="success">📝 Анализ:</span>
+${content}`;
+                
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Ошибка анализа изображения: ${error.message}</span>`;
+            }
+        }
+
+        // Function Calling Test
+        async function testFunctionCalling() {
+            const output = document.getElementById('functionOutput');
+            const prompt = document.getElementById('functionPrompt').value;
+            
+            output.innerHTML = '<span class="info">⚙️ Тест function calling...</span>';
+            
+            // Mock weather function
+            const tools = [{
+                type: "function",
+                function: {
+                    name: "get_weather",
+                    description: "Get current weather information for a specific location",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            location: {
+                                type: "string",
+                                description: "City name"
+                            }
+                        },
+                        required: ["location"],
+                        additionalProperties: false
+                    },
+                    strict: true
+                }
+            }];
+            
+            try {
+                const messages = [{ role: 'user', content: prompt }];
+                const completion = await window.puter.ai.chat(messages, { 
+                    model: "gpt-4.1-nano",
+                    tools: tools 
+                });
+                
+                if (completion.message?.tool_calls && completion.message.tool_calls.length > 0) {
+                    const toolCall = completion.message.tool_calls[0];
+                    const args = JSON.parse(toolCall.function.arguments);
+                    
+                    // Mock weather response
+                    const weatherData = `Температура в ${args.location}: 22°C, солнечно`;
+                    
+                    output.innerHTML = `<span class="success">✅ Function calling работает!</span>
+<span class="info">❓ Prompt: ${prompt}</span>
+<span class="info">⚙️ Function called: ${toolCall.function.name}</span>
+<span class="info">📊 Arguments: ${JSON.stringify(args, null, 2)}</span>
+<span class="success">🌤️ Mock result: ${weatherData}</span>`;
+                    
+                } else {
+                    output.innerHTML = `<span class="warning">⚠️ Function calling не сработал</span>
+<span class="info">🤖 Обычный ответ:</span>
+${completion.message?.content || completion}`;
+                }
+                
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Ошибка function calling: ${error.message}</span>`;
+            }
+        }
+
+        // Test All Models
+        async function testAllModels() {
+            const output = document.getElementById('modelsOutput');
+            const models = [
+                'gpt-4.1-nano',
+                'claude-sonnet-4', 
+                'google/gemini-2.5-flash',
+                'meta-llama/llama-3.1-70b-instruct',
+                'deepseek/deepseek-chat',
+                'perplexity/llama-3.1-sonar-large-128k-online'
+            ];
+            
+            output.innerHTML = '<span class="info">🧪 Тестирование доступности моделей...</span>\n';
+            
+            for (const model of models) {
+                try {
+                    output.innerHTML += `\n<span class="info">🔄 Тест ${model}...</span>`;
+                    
+                    const startTime = Date.now();
+                    const messages = [{ role: 'user', content: "Hello" }];
+                    const response = await window.puter.ai.chat(messages, { 
+                        model: model, 
+                        max_tokens: 10 
+                    });
+                    const responseTime = Date.now() - startTime;
+                    
+                    output.innerHTML += `<span class="success"> ✅ OK (${responseTime}ms)</span>`;
+                    
+                } catch (error) {
+                    output.innerHTML += `<span class="error"> ❌ Failed: ${error.message}</span>`;
+                }
+            }
+            
+            output.innerHTML += '\n\n<span class="success">🎉 Тест моделей завершен!</span>';
+        }
+
+        // Performance Test
+        async function testPerformance() {
+            const output = document.getElementById('performanceOutput');
+            
+            output.innerHTML = '<span class="info">📊 Тест производительности...</span>\n';
+            
+            const testPrompts = [
+                "Привет!",
+                "Что такое AI?", 
+                "Объясни JavaScript",
+                "Расскажи о квантовой физике",
+                "Как работают нейронные сети?"
+            ];
+            
+            let totalTime = 0;
+            let successCount = 0;
+            
+            for (let i = 0; i < testPrompts.length; i++) {
+                try {
+                    const startTime = Date.now();
+                    const messages = [{ role: 'user', content: testPrompts[i] }];
+                    await window.puter.ai.chat(messages, { 
+                        model: "gpt-4.1-nano", 
+                        max_tokens: 50 
+                    });
+                    const responseTime = Date.now() - startTime;
+                    
+                    totalTime += responseTime;
+                    successCount++;
+                    
+                    output.innerHTML += `\n<span class="success">✅ Request ${i+1}: ${responseTime}ms</span>`;
+                    
+                } catch (error) {
+                    output.innerHTML += `\n<span class="error">❌ Request ${i+1}: ${error.message}</span>`;
+                }
+            }
+            
+            const avgTime = successCount > 0 ? Math.round(totalTime / successCount) : 0;
+            output.innerHTML += `\n\n<span class="info">📈 Результаты:</span>
+<span class="success">✅ Успешных: ${successCount}/${testPrompts.length}</span>
+<span class="info">⏱️ Среднее время: ${avgTime}ms</span>
+<span class="info">🚀 Общее время: ${totalTime}ms</span>`;
+        }
+
+        // Error Handling Test
+        async function testErrorHandling() {
+            const output = document.getElementById('performanceOutput');
+            
+            output.innerHTML = '<span class="info">❌ Тест обработки ошибок...</span>\n';
+            
+            // Test with invalid model
+            try {
+                const messages = [{ role: 'user', content: "Test" }];
+                await window.puter.ai.chat(messages, { model: "invalid-model-12345" });
+                output.innerHTML += '\n<span class="error">❌ Ошибка: недопустимая модель должна была вызвать ошибку</span>';
+            } catch (error) {
+                output.innerHTML += `\n<span class="success">✅ Правильно обработана ошибка неверной модели: ${error.message}</span>`;
+            }
+            
+            // Test with empty prompt
+            try {
+                const messages = [{ role: 'user', content: "" }];
+                await window.puter.ai.chat(messages, { model: "gpt-4.1-nano" });
+                output.innerHTML += '\n<span class="warning">⚠️ Пустой prompt обработан без ошибки</span>';
+            } catch (error) {
+                output.innerHTML += `\n<span class="success">✅ Правильно обработана ошибка пустого prompt: ${error.message}</span>`;
+            }
+            
+            output.innerHTML += '\n\n<span class="success">🎉 Тест обработки ошибок завершен!</span>';
+        }
+    </script>
+</body>
+</html>

@@ -321,4 +321,14 @@ export abstract class BaseAgent {
   public getContext(): AgentContext {
     return { ...this.context };
   }
+
+  // Update available tools for the agent
+  public updateAvailableTools(tools: string[]): void {
+    this.context.availableTools = tools;
+  }
+
+  // Get available tools
+  public getAvailableTools(): string[] {
+    return this.context.availableTools;
+  }
 }

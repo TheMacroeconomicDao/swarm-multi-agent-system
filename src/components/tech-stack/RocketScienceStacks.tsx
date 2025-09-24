@@ -2,11 +2,13 @@
 // Display and manage cutting-edge technology stacks
 
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { SmartTooltip, FeatureTooltip, PerformanceTooltip } from '@/components/ui/smart-tooltip';
 import { 
   Rocket, 
   Zap, 
@@ -116,15 +118,30 @@ export const RocketScienceStacks: React.FC<RocketScienceStacksProps> = ({ onStac
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="text-center space-y-4">
-        <div className="flex items-center justify-center space-x-2">
+      <motion.div 
+        className="text-center space-y-4 mb-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <motion.div 
+          className="flex items-center justify-center space-x-2"
+          animate={{
+            y: [0, -5, 0]
+          }}
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        >
           <Rocket className="w-8 h-8 text-primary" />
           <h1 className="text-4xl font-bold gradient-text">Swarm Multiagent Tech Stacks</h1>
-        </div>
+        </motion.div>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
           Discover the most cutting-edge and innovative technology stacks for building the future
         </p>
-      </div>
+      </motion.div>
 
       {/* Filters */}
       <Tabs value={selectedLevel} onValueChange={(value) => setSelectedLevel(value as any)} className="w-full">
@@ -162,59 +179,163 @@ export const RocketScienceStacks: React.FC<RocketScienceStacksProps> = ({ onStac
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="glass p-4">
-              <div className="flex items-center space-x-2">
-                <Rocket className="w-5 h-5 text-primary" />
-                <div>
-                  <div className="text-2xl font-bold">{stacks.length}</div>
-                  <div className="text-sm text-muted-foreground">Total Stacks</div>
-                </div>
-              </div>
-            </Card>
-            <Card className="glass p-4">
-              <div className="flex items-center space-x-2">
-                <Zap className="w-5 h-5 text-yellow-500" />
-                <div>
-                  <div className="text-2xl font-bold">
-                    {stacks.filter(s => (s.rocketScience?.overall || 0) >= 95).length}
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-4 gap-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <SmartTooltip
+              title="Total Tech Stacks"
+              description="Complete collection of curated technology combinations from beginner to rocket science level"
+              type="info"
+            >
+              <Card className="glass p-4 hover:scale-105 transition-all duration-300 cursor-help">
+                <div className="flex items-center space-x-2">
+                  <motion.div
+                    animate={{ rotate: [0, 360] }}
+                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Rocket className="w-5 h-5 text-primary" />
+                  </motion.div>
+                  <div>
+                    <motion.div 
+                      className="text-2xl font-bold"
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      {stacks.length}
+                    </motion.div>
+                    <div className="text-sm text-muted-foreground">Total Stacks</div>
                   </div>
-                  <div className="text-sm text-muted-foreground">Swarm Science</div>
                 </div>
-              </div>
-            </Card>
-            <Card className="glass p-4">
-              <div className="flex items-center space-x-2">
-                <Brain className="w-5 h-5 text-blue-500" />
-                <div>
-                  <div className="text-2xl font-bold">
-                    {stacks.filter(s => (s.rocketScience?.cuttingEdge || 0) >= 80).length}
+              </Card>
+            </SmartTooltip>
+
+            <PerformanceTooltip
+              title="Swarm Science Level"
+              description="Ultra-advanced technology stacks with 95+ innovation score, representing the pinnacle of modern development"
+            >
+              <Card className="glass p-4 hover:scale-105 transition-all duration-300 cursor-help">
+                <div className="flex items-center space-x-2">
+                  <motion.div
+                    animate={{ 
+                      boxShadow: ["0 0 20px rgba(234, 179, 8, 0.3)", "0 0 40px rgba(234, 179, 8, 0.6)", "0 0 20px rgba(234, 179, 8, 0.3)"]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Zap className="w-5 h-5 text-yellow-500" />
+                  </motion.div>
+                  <div>
+                    <motion.div 
+                      className="text-2xl font-bold"
+                      animate={{ opacity: [0.8, 1, 0.8] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                      {stacks.filter(s => (s.rocketScience?.overall || 0) >= 95).length}
+                    </motion.div>
+                    <div className="text-sm text-muted-foreground">Swarm Science</div>
                   </div>
-                  <div className="text-sm text-muted-foreground">Cutting Edge</div>
                 </div>
-              </div>
-            </Card>
-            <Card className="glass p-4">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="w-5 h-5 text-green-500" />
-                <div>
-                  <div className="text-2xl font-bold">
-                    {stacks.filter(s => (s.rocketScience?.futurePotential || 0) >= 90).length}
+              </Card>
+            </PerformanceTooltip>
+
+            <FeatureTooltip
+              title="Cutting Edge Technologies"
+              description="Technology stacks with 80+ cutting-edge score, featuring the latest innovations and bleeding-edge tools"
+            >
+              <Card className="glass p-4 hover:scale-105 transition-all duration-300 cursor-help">
+                <div className="flex items-center space-x-2">
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 1.8, repeat: Infinity }}
+                  >
+                    <Brain className="w-5 h-5 text-blue-500" />
+                  </motion.div>
+                  <div>
+                    <motion.div 
+                      className="text-2xl font-bold"
+                      animate={{ y: [0, -3, 0] }}
+                      transition={{ duration: 2.2, repeat: Infinity }}
+                    >
+                      {stacks.filter(s => (s.rocketScience?.cuttingEdge || 0) >= 80).length}
+                    </motion.div>
+                    <div className="text-sm text-muted-foreground">Cutting Edge</div>
                   </div>
-                  <div className="text-sm text-muted-foreground">Future Tech</div>
                 </div>
-              </div>
-            </Card>
-          </div>
+              </Card>
+            </FeatureTooltip>
+
+            <SmartTooltip
+              title="Future Technology"
+              description="Forward-looking technology stacks with 90+ future potential score, designed for next-generation applications"
+              type="ai"
+            >
+              <Card className="glass p-4 hover:scale-105 transition-all duration-300 cursor-help">
+                <div className="flex items-center space-x-2">
+                  <motion.div
+                    animate={{ 
+                      rotate: [0, 10, -10, 0],
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ duration: 2.5, repeat: Infinity }}
+                  >
+                    <TrendingUp className="w-5 h-5 text-green-500" />
+                  </motion.div>
+                  <div>
+                    <motion.div 
+                      className="text-2xl font-bold"
+                      animate={{ 
+                        background: ["linear-gradient(45deg, #22c55e, #10b981)", "linear-gradient(45deg, #10b981, #22c55e)"],
+                        backgroundClip: "text",
+                        color: "transparent"
+                      }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                    >
+                      {stacks.filter(s => (s.rocketScience?.futurePotential || 0) >= 90).length}
+                    </motion.div>
+                    <div className="text-sm text-muted-foreground">Future Tech</div>
+                  </div>
+                </div>
+              </Card>
+            </SmartTooltip>
+          </motion.div>
 
           {/* Tech Stacks Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {stacks.map((stack) => (
-              <Card 
-                key={stack.id} 
-                className="glass hover:shadow-lg transition-all duration-300 cursor-pointer group"
-                onClick={() => onStackSelect?.(stack)}
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1, delay: 0.3 }}
+          >
+            {stacks.map((stack, index) => (
+              <motion.div
+                key={stack.id}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ 
+                  duration: 0.5,
+                  delay: 0.1 * index,
+                  type: "spring",
+                  stiffness: 100
+                }}
+                whileHover={{ 
+                  scale: 1.03,
+                  y: -5,
+                  boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
+                }}
+                whileTap={{ scale: 0.98 }}
               >
+                <SmartTooltip
+                  title={`${stack.name} Stack`}
+                  description={`${stack.description} - Swarm Science Score: ${stack.rocketScience?.overall || 0}/100`}
+                  type="feature"
+                  shortcut="Click to explore"
+                >
+                  <Card 
+                    className="glass hover:shadow-2xl transition-all duration-300 cursor-pointer group h-full"
+                    onClick={() => onStackSelect?.(stack)}
+                  >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-2">
@@ -304,29 +425,74 @@ export const RocketScienceStacks: React.FC<RocketScienceStacksProps> = ({ onStac
                   </div>
 
                   {/* Action Button */}
-                  <Button 
-                    className="w-full group-hover:bg-primary/90 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onStackSelect?.(stack);
-                    }}
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <Rocket className="w-4 h-4 mr-2" />
-                    Explore Stack
-                  </Button>
+                    <Button 
+                      className="w-full group-hover:bg-primary/90 transition-all duration-300"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onStackSelect?.(stack);
+                      }}
+                    >
+                      <motion.div
+                        animate={{ rotate: [0, 360] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="mr-2"
+                      >
+                        <Rocket className="w-4 h-4" />
+                      </motion.div>
+                      Explore Stack
+                    </Button>
+                  </motion.div>
                 </CardContent>
-              </Card>
+                  </Card>
+                </SmartTooltip>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           {stacks.length === 0 && (
-            <div className="text-center py-12">
-              <Rocket className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+            <motion.div 
+              className="text-center py-12"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <motion.div
+                animate={{
+                  rotate: [0, 10, -10, 0],
+                  y: [0, -5, 5, 0]
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                <Rocket className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+              </motion.div>
               <h3 className="text-xl font-semibold mb-2">No stacks found</h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-4">
                 Try adjusting your filters to see more technology stacks.
               </p>
-            </div>
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedLevel('all');
+                    setSelectedCategory('all');
+                  }}
+                >
+                  <Star className="w-4 h-4 mr-2" />
+                  Show All Stacks
+                </Button>
+              </motion.div>
+            </motion.div>
           )}
         </TabsContent>
       </Tabs>

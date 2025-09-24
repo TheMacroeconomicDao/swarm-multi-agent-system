@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Простой тест Puter.js API</title>
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #1a1a1a; color: #fff; }
+        button { background: #4a9eff; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; margin: 10px; font-size: 16px; }
+        button:hover { background: #3a8eef; }
+        .output { background: #0a0a0a; padding: 20px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; margin: 20px 0; border-left: 4px solid #4a9eff; }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+        .info { color: #60a5fa; }
+        h1 { color: #4a9eff; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Простой тест Puter.js API</h1>
+    <p>Тестируем базовые примеры из документации</p>
+    
+    <button onclick="testBasicClaude()">🤖 Test Claude Sonnet 4</button>
+    <button onclick="testBasicGPT()">⚡ Test GPT-4.1 Nano</button>
+    <button onclick="testBasicGemini()">💎 Test Gemini 2.5 Flash</button>
+    <button onclick="testStreamingClaude()">📡 Test Streaming</button>
+    
+    <div class="output" id="output">Нажмите любую кнопку для тестирования...</div>
+
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'success' ? '#4ade80' : type === 'error' ? '#f87171' : '#60a5fa';
+            output.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            console.log(message);
+        }
+        
+        // Проверка Puter.js при загрузке
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (typeof window.puter === 'undefined') {
+                log('❌ ОШИБКА: Puter.js не загружен!', 'error');
+                return;
+            }
+            
+            log('✅ Puter.js обнаружен', 'success');
+            
+            if (!window.puter.ai || typeof window.puter.ai.chat !== 'function') {
+                log('❌ ОШИБКА: puter.ai.chat недоступен!', 'error');
+                return;
+            }
+            
+            log('✅ puter.ai.chat функция доступна', 'success');
+            
+            // Попытка инициализации Puter.js
+            try {
+                log('🔐 Попытка инициализации Puter.js...', 'info');
+                
+                // Проверяем доступные методы
+                log('🔍 Доступные методы puter:', Object.keys(window.puter), 'info');
+                log('🔍 Доступные методы puter.ai:', Object.keys(window.puter.ai), 'info');
+                
+                // Попытка простой инициализации
+                if (typeof window.puter.init === 'function') {
+                    await window.puter.init();
+                    log('✅ Puter.js инициализирован', 'success');
+                } else {
+                    log('⚠️ puter.init недоступен, пробуем без инициализации', 'info');
+                }
+                
+            } catch (initError) {
+                log('⚠️ Ошибка инициализации Puter.js:', initError.message, 'error');
+            }
+            
+            log('🚀 Готов к тестированию!', 'success');
+        });
+
+        // Тест 1: Базовый Claude Sonnet 4 (точно по документации)
+        async function testBasicClaude() {
+            log('🧪 Тест Claude Sonnet 4 - точно по документации...');
+            output.innerHTML += '\n';
+            
+            try {
+                // Попытка инициализации перед тестом
+                log('🔐 Попытка инициализации перед тестом...', 'info');
+                
+                if (typeof window.puter.init === 'function') {
+                    try {
+                        await window.puter.init();
+                        log('✅ Инициализация успешна', 'success');
+                    } catch (initError) {
+                        log('⚠️ Ошибка инициализации:', initError.message, 'error');
+                    }
+                }
+                
+                // Точно как в официальной документации Puter.js
+                const response = await window.puter.ai.chat(
+                    "Explain quantum computing in simple terms"
+                );
+                
+                log('✅ API вызов выполнен успешно!', 'success');
+                log(`🔍 Тип ответа: ${typeof response}`, 'info');
+                log(`🔍 Полная структура ответа:`, 'info');
+                log(JSON.stringify(response, null, 2), 'info');
+                
+                // Извлекаем контент как в документации
+                if (response?.message?.content?.[0]?.text) {
+                    log('📝 Извлеченный текст:', 'success');
+                    log(response.message.content[0].text, 'success');
+                } else if (typeof response === 'string') {
+                    log('📝 Простой строковый ответ:', 'success');
+                    log(response, 'success');
+                } else {
+                    log('⚠️ Неожиданный формат ответа', 'error');
+                }
+                
+            } catch (error) {
+                log('❌ ОШИБКА Claude Sonnet 4:', 'error');
+                log(`Message: ${error.message}`, 'error');
+                log(`Full error: ${JSON.stringify(error, null, 2)}`, 'error');
+            }
+        }
+
+        // Тест 2: GPT-4.1 Nano
+        async function testBasicGPT() {
+            log('🧪 Тест GPT-4.1 Nano...');
+            output.innerHTML += '\n';
+            
+            try {
+                const response = await window.puter.ai.chat(
+                    "What is artificial intelligence?"
+                );
+                
+                log('✅ GPT API вызов выполнен!', 'success');
+                log(`🔍 Тип ответа: ${typeof response}`, 'info');
+                log(JSON.stringify(response, null, 2), 'info');
+                
+            } catch (error) {
+                log('❌ ОШИБКА GPT-4.1 Nano:', 'error');
+                log(JSON.stringify(error, null, 2), 'error');
+            }
+        }
+
+        // Тест 3: Gemini 2.5 Flash  
+        async function testBasicGemini() {
+            log('🧪 Тест Gemini 2.5 Flash...');
+            output.innerHTML += '\n';
+            
+            try {
+                const response = await window.puter.ai.chat(
+                    "Hello world!"
+                );
+                
+                log('✅ Gemini API вызов выполнен!', 'success');
+                log(`🔍 Тип ответа: ${typeof response}`, 'info');
+                log(JSON.stringify(response, null, 2), 'info');
+                
+            } catch (error) {
+                log('❌ ОШИБКА Gemini:', 'error');
+                log(JSON.stringify(error, null, 2), 'error');
+            }
+        }
+
+        // Тест 4: Стриминг (точно по документации)
+        async function testStreamingClaude() {
+            log('🧪 Тест стриминга Claude Opus 4...');
+            output.innerHTML += '\n';
+            
+            try {
+                const response = await window.puter.ai.chat(
+                    "Write a short poem about AI"
+                );
+                
+                log('✅ Стриминг API вызов выполнен!', 'success');
+                log('📡 Получение стрим данных...', 'info');
+                
+                let streamedContent = '';
+                for await (const part of response) {
+                    if (part?.text) {
+                        streamedContent += part.text;
+                        log(`📝 Chunk: ${part.text}`, 'success');
+                    }
+                }
+                
+                log('🎉 Стриминг завершен!', 'success');
+                log(`📖 Полный текст: ${streamedContent}`, 'success');
+                
+            } catch (error) {
+                log('❌ ОШИБКА стриминга:', 'error');
+                log(JSON.stringify(error, null, 2), 'error');
+            }
+        }
+    </script>
+</body>
+</html>

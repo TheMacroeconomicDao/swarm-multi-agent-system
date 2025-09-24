@@ -10,14 +10,17 @@ import {
   EventFilter,
   EventStore
 } from '@/types/events';
+import { InMemoryEventStore } from './event-store';
 
 export class EventBus {
+  private static instance: EventBus | null = null;
   private subscriptions = new Map<AgentEventType, EventSubscription[]>();
   private eventStore: EventStore;
   private config: EventBusConfig;
   private isProcessing = false;
   private eventQueue: AgentEvent[] = [];
   private processingInterval: NodeJS.Timeout | null = null;
+  private eventCounter = 0; // Счетчик для гарантии уникальности ID событий
 
   constructor(eventStore: EventStore, config: EventBusConfig) {
     this.eventStore = eventStore;
@@ -25,10 +28,47 @@ export class EventBus {
     this.startProcessing();
   }
 
-  // Subscribe to specific event types
+  // Singleton pattern
+  public static getInstance(): EventBus {
+    if (!EventBus.instance) {
+      // Create default instance if none exists
+      EventBus.instance = new EventBus(
+        new InMemoryEventStore(),
+        {
+          maxRetries: 3,
+          retryDelay: 1000,
+          batchSize: 10,
+          flushInterval: 100,
+          persistence: true,
+          compression: false,
+          encryption: false
+        }
+      );
+    }
+    return EventBus.instance;
+  }
+
+  // Subscribe to specific event types (formal AgentEventType)
   public subscribe(
     eventType: AgentEventType,
     handler: EventHandler,
+    options?: {
+      filter?: (event: AgentEvent) => boolean;
+      priority?: number;
+    }
+  ): string;
+  // Subscribe to any string event type
+  public subscribe(
+    eventType: string,
+    handler: (data?: any) => void,
+    options?: {
+      filter?: (event: AgentEvent) => boolean;
+      priority?: number;
+    }
+  ): string;
+  public subscribe(
+    eventType: AgentEventType | string,
+    handler: EventHandler | ((data?: any) => void),
     options: {
       filter?: (event: AgentEvent) => boolean;
       priority?: number;
@@ -71,9 +111,35 @@ export class EventBus {
     return false;
   }
 
-  // Publish event to the bus
-  public async publish(event: AgentEvent): Promise<void> {
+  // Publish event to the bus (formal AgentEvent)
+  public async publish(event: AgentEvent): Promise<void>;
+  // Publish simple event (string type with data)
+  public async publish(eventType: string, data?: any): Promise<void>;
+  public async publish(eventOrType: AgentEvent | string, data?: any): Promise<void> {
     try {
+      let event: AgentEvent;
+      
+      if (typeof eventOrType === 'string') {
+        // Create AgentEvent from simple parameters with improved unique ID generation
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 12); // Увеличена длина случайной части
+        const counter = this.eventCounter++; // Добавлен счетчик для гарантии уникальности
+        
+        event = {
+          id: `event_${timestamp}_${counter}_${random}`,
+          type: eventOrType as any, // Allow any string type for flexibility
+          source: data?.source || 'system',
+          target: data?.target,
+          timestamp,
+          correlationId: data?.correlationId || `corr_${timestamp}_${random}`,
+          version: 1,
+          metadata: data?.metadata,
+          payload: data || {}
+        };
+      } else {
+        event = eventOrType;
+      }
+
       // Add to event store for persistence
       if (this.config.persistence) {
         await this.eventStore.append(event);
@@ -171,8 +237,14 @@ export class EventBus {
           continue;
         }
 
-        // Execute handler
-        await subscription.handler(event);
+        // Execute handler - check if it's a simple handler or formal EventHandler
+        if (subscription.handler.length === 1) {
+          // Formal EventHandler that expects full AgentEvent
+          await subscription.handler(event);
+        } else {
+          // Simple handler that expects just data
+          await (subscription.handler as any)(event.payload);
+        }
         console.log(`✅ Event processed: ${event.type} by ${subscription.id}`);
       } catch (error) {
         console.error(`❌ Error processing event ${event.type} by ${subscription.id}:`, error);

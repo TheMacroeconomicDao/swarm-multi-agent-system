@@ -11,47 +11,13 @@ import {
   AgentMessage 
 } from '@/types/agents';
 import { SwarmAgent } from './swarm-agent';
-import { ContextManager } from './context-manager';
+import { ContextManager, IContextManager } from '@/lib/swarm/context-manager';
 import { QualityValidator } from './quality-validator';
 import { CostOptimizer } from './cost-optimizer';
-
-export interface SwarmTask {
-  id: string;
-  title: string;
-  description: string;
-  complexity: number; // 1-10
-  domain: string[];
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  estimatedTime: number; // minutes
-  dependencies: string[];
-  subtasks: SwarmTask[];
-  context: Record<string, any>;
-  requirements: {
-    codeQuality: number; // 1-10
-    performance: number; // 1-10
-    security: number; // 1-10
-    maintainability: number; // 1-10
-  };
-  constraints: string[];
-  successCriteria: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface SwarmExecution {
-  id: string;
-  taskId: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
-  assignedAgents: string[];
-  parallelExecutions: SwarmExecution[];
-  results: AgentResponse[];
-  qualityScore: number;
-  cost: number;
-  duration: number;
-  startedAt: Date;
-  completedAt?: Date;
-  error?: string;
-}
+import { SwarmTask, SwarmExecution, SwarmConfiguration } from './types';
+import { PSOSwarmIntelligence, PSOConfiguration, TaskAssignment } from './algorithms/pso-algorithm';
+import { DecentralizedSwarmCoordinator } from './coordination/decentralized-coordinator';
+import { EventBus } from '@/lib/events/event-bus';
 
 export interface SwarmMetrics {
   totalTasks: number;
@@ -71,6 +37,7 @@ export class SwarmCoordinator extends BaseAgent {
   private contextManager: ContextManager;
   private qualityValidator: QualityValidator;
   private costOptimizer: CostOptimizer;
+  private psoIntelligence: PSOSwarmIntelligence;
   private activeExecutions: Map<string, SwarmExecution> = new Map();
   private swarmMetrics: SwarmMetrics;
   private maxParallelExecutions: number = 5;
@@ -81,7 +48,7 @@ export class SwarmCoordinator extends BaseAgent {
     successPatterns: Map<string, number>;
   };
 
-  constructor(id: string = 'swarm_coordinator') {
+  constructor(id: string = 'swarm_coordinator', eventBus?: EventBus) {
     super(id, AgentRole.COORDINATOR, {
       availableTools: [
         'swarm_orchestration',
@@ -97,11 +64,30 @@ export class SwarmCoordinator extends BaseAgent {
         { name: 'Cost Optimization', description: 'Optimize resource usage and API costs', confidence: 0.88, successRate: 0.85 },
         { name: 'Swarm Learning', description: 'Learn from swarm performance patterns', confidence: 0.90, successRate: 0.87 }
       ]
-    });
+    }, eventBus);
 
     this.contextManager = new ContextManager();
     this.qualityValidator = new QualityValidator();
     this.costOptimizer = new CostOptimizer();
+    
+    // Initialize PSO algorithm
+    const psoConfig: PSOConfiguration = {
+      swarmSize: 20,
+      maxIterations: 100,
+      inertia: 0.9,
+      cognitiveWeight: 2.0,
+      socialWeight: 2.0,
+      maxVelocity: 4.0,
+      minVelocity: -4.0,
+      convergenceThreshold: 0.001,
+      fitnessWeights: {
+        time: 0.3,
+        cost: 0.2,
+        quality: 0.3,
+        loadBalance: 0.2
+      }
+    };
+    this.psoIntelligence = new PSOSwarmIntelligence(psoConfig);
     
     this.swarmMetrics = {
       totalTasks: 0,
@@ -137,8 +123,35 @@ export class SwarmCoordinator extends BaseAgent {
     console.log('🐝 Swarm agents initialization ready');
   }
 
-  public async processTask(task: Task): Promise<AgentResponse> {
+  public async processTask(task: Task | string): Promise<AgentResponse | string> {
+    // Handle string input for demo purposes
+    if (typeof task === 'string') {
+      const taskObj: Task = {
+        id: `demo_task_${Date.now()}`,
+        title: 'Demo Task',
+        description: task,
+        status: 'pending',
+        priority: 'high',
+        dependencies: [],
+        subtasks: [],
+        estimatedComplexity: 7
+      };
+      const response = await this.processTask(taskObj);
+      return taskObj.id; // Return the task ID for tracking
+    }
+    
     console.log(`🐝 Swarm processing task: ${task.title}`);
+    
+    // Emit task_created event
+    if (this.eventBus) {
+      this.eventBus.publish('task_created', {
+        taskId: task.id,
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        timestamp: new Date()
+      });
+    }
     
     // Convert to swarm task
     const swarmTask = this.convertToSwarmTask(task);
@@ -199,6 +212,11 @@ export class SwarmCoordinator extends BaseAgent {
     }));
   }
 
+  // Public method to get all swarm agents
+  public getAgents(): SwarmAgent[] {
+    return Array.from(this.swarmAgents.values());
+  }
+
   // 🧠 Swarm Intelligence
   private async analyzeSwarmStrategy(task: SwarmTask): Promise<{
     executionType: 'sequential' | 'parallel' | 'hybrid';
@@ -220,8 +238,9 @@ export class SwarmCoordinator extends BaseAgent {
       executionType = 'hybrid';
     }
     
-    // Assign agents based on expertise and availability
-    const agentAssignments = this.assignAgentsToSubtasks(task, availableAgents, domainExpertise);
+    // Use PSO to optimize agent assignments
+    const psoAssignments = await this.optimizeWithPSO(task, availableAgents);
+    const agentAssignments = this.convertPSOToAssignments(psoAssignments, task);
     
     // Estimate costs and quality
     const estimatedCost = await this.costOptimizer.estimateExecutionCost(agentAssignments);
@@ -245,13 +264,22 @@ export class SwarmCoordinator extends BaseAgent {
       id: `exec_${Date.now()}`,
       taskId: task.id,
       status: 'in_progress',
+      executionType: strategy.executionType,
       assignedAgents: strategy.agentAssignments.map((a: any) => a.agentId),
       parallelExecutions: [],
+      startTime: new Date(),
+      startedAt: new Date(),
+      duration: 0,
       results: [],
+      success: false,
       qualityScore: 0,
       cost: 0,
-      duration: 0,
-      startedAt: new Date()
+      metrics: {
+        totalCost: 0,
+        qualityScore: 0,
+        efficiency: 0,
+        agentUtilization: {}
+      }
     };
 
     this.activeExecutions.set(execution.id, execution);
@@ -456,15 +484,80 @@ ${synthesis}
     });
   }
 
+  // 🐝 PSO Optimization Methods
+  private async optimizeWithPSO(
+    task: SwarmTask, 
+    availableAgents: SwarmAgent[]
+  ): Promise<TaskAssignment[]> {
+    // Prepare tasks for PSO (include main task and subtasks)
+    const tasksForPSO = [task, ...task.subtasks];
+    
+    // Prepare agents for PSO
+    const agentsForPSO = availableAgents.map(agent => ({
+      id: agent.getId(),
+      capabilities: agent.getCapabilities(),
+      workload: agent.getCurrentWorkload()
+    }));
+    
+    // Run PSO optimization
+    const optimizedAssignments = await this.psoIntelligence.optimizeTaskAssignment(
+      tasksForPSO,
+      agentsForPSO
+    );
+    
+    // Log optimization results
+    const stats = this.psoIntelligence.getOptimizationStats();
+    console.log(`🐝 PSO Optimization completed:`, {
+      iteration: stats.iteration,
+      bestFitness: stats.globalBestFitness,
+      averageFitness: stats.averageFitness,
+      convergence: stats.convergence
+    });
+    
+    return optimizedAssignments;
+  }
+
+  private convertPSOToAssignments(
+    psoAssignments: TaskAssignment[],
+    mainTask: SwarmTask
+  ): { agentId: string; subtask: SwarmTask; priority: number }[] {
+    const assignments: { agentId: string; subtask: SwarmTask; priority: number }[] = [];
+    
+    // Find assignment for main task
+    const mainTaskAssignment = psoAssignments.find(a => a.taskId === mainTask.id);
+    if (mainTaskAssignment) {
+      assignments.push({
+        agentId: mainTaskAssignment.agentId,
+        subtask: mainTask,
+        priority: this.calculatePriority(mainTask)
+      });
+    }
+    
+    // Find assignments for subtasks
+    for (const subtask of mainTask.subtasks) {
+      const subtaskAssignment = psoAssignments.find(a => a.taskId === subtask.id);
+      if (subtaskAssignment) {
+        assignments.push({
+          agentId: subtaskAssignment.agentId,
+          subtask: subtask,
+          priority: this.calculatePriority(subtask)
+        });
+      }
+    }
+    
+    return assignments;
+  }
+
   // 🛠️ Utility Methods
   private convertToSwarmTask(task: Task): SwarmTask {
     return {
       id: task.id,
       title: task.title,
       description: task.description,
-      complexity: task.estimatedComplexity,
+      complexity: task.estimatedComplexity || 5,
       domain: this.extractDomains(task.description),
       priority: task.priority,
+      status: task.status,
       estimatedTime: this.estimateTaskTime(task),
       dependencies: task.dependencies,
       subtasks: task.subtasks.map(subtask => this.convertToSwarmTask(subtask)),
@@ -475,10 +568,10 @@ ${synthesis}
         security: 6,
         maintainability: 8
       },
-      constraints: task.metadata.constraints || [],
+      constraints: task.metadata?.constraints || [],
       successCriteria: this.generateSuccessCriteria(task),
-      createdAt: task.createdAt,
-      updatedAt: task.updatedAt
+      createdAt: task.createdAt || new Date(),
+      updatedAt: task.updatedAt || new Date()
     };
   }
 
@@ -493,18 +586,35 @@ ${synthesis}
   }
 
   private estimateTaskTime(task: Task): number {
-    return task.estimatedComplexity * 5; // Base estimation in minutes
+    return (task.estimatedComplexity || 5) * 5; // Base estimation in minutes
   }
 
   private generateSuccessCriteria(task: Task): string[] {
-    return [
-      'Code compiles without errors',
-      'All tests pass',
-      'Performance requirements met',
-      'Security standards followed',
-      'Documentation updated'
-    ];
+    const criteria = [];
+    
+    // Base success criteria
+    criteria.push('Task completed without errors');
+    criteria.push('Output meets quality requirements');
+    
+    // Add specific criteria based on task type
+    if (task.description.toLowerCase().includes('code') || task.description.toLowerCase().includes('develop')) {
+      criteria.push('Code follows best practices');
+      criteria.push('Code is properly tested');
+    }
+    
+    if (task.description.toLowerCase().includes('api')) {
+      criteria.push('API endpoints respond correctly');
+      criteria.push('API documentation is complete');
+    }
+    
+    if (task.description.toLowerCase().includes('ui') || task.description.toLowerCase().includes('interface')) {
+      criteria.push('UI is responsive and accessible');
+      criteria.push('UX meets design requirements');
+    }
+    
+    return criteria;
   }
+
 
   private calculateTaskComplexity(task: SwarmTask): number {
     let complexity = task.complexity;

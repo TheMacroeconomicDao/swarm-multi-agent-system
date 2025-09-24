@@ -811,3 +811,4 @@ interface QualityThresholds {
   excellent: number;
   critical: number;
 }
+

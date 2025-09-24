@@ -41,7 +41,7 @@ export class AgentEventManager {
     this.agents.set(agent.getId(), agent);
     
     // Get agent capabilities
-    const capabilities = agent.getContext().availableTools || [];
+    const capabilities = agent.getAvailableTools();
     this.agentCapabilities.set(agent.getId(), capabilities);
     this.agentWorkloads.set(agent.getId(), 0);
 
@@ -55,6 +55,16 @@ export class AgentEventManager {
     
     this.eventBus.publish(event);
     console.log(`🤖 Agent registered: ${agent.getId()} (${agent.getRole()})`);
+  }
+
+  // Update agent capabilities
+  public updateAgentCapabilities(agentId: string, capabilities: string[]): void {
+    if (this.agents.has(agentId)) {
+      this.agentCapabilities.set(agentId, capabilities);
+      const agent = this.agents.get(agentId)!;
+      agent.updateAvailableTools(capabilities);
+      console.log(`🔄 Agent capabilities updated: ${agentId}`);
+    }
   }
 
   // Submit task to the system

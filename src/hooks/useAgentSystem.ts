@@ -4,6 +4,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { CoordinatorAgent } from '@/lib/agents/coordinator-agent';
 import { ArchitectAgent, DeveloperAgent, AnalystAgent } from '@/lib/agents/specialized-agents';
+import { AIEnhancedArchitectAgent, AIEnhancedDeveloperAgent, AIEnhancedAnalystAgent, createAIEnhancedAgent } from '@/lib/agents/ai-enhanced-agents';
 import { SwarmCoordinator } from '@/lib/swarm/swarm-coordinator';
 import { FrontendSwarmAgent, BackendSwarmAgent, TestingSwarmAgent } from '@/lib/agents/swarm-specialized-agents';
 import { VibeCodeSession, AgentMessage, AgentState, AgentRole, Task, CodeFile } from '@/types/agents';
@@ -60,6 +61,7 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
   // Initialize event system
   const eventManagerRef = useRef<AgentEventManager>();
   const eventBusRef = useRef<EventBus>();
+  const eventSubscribersInitialized = useRef(false);
   
   // Initialize agents once using refs to prevent re-creation
   const coordinatorRef = useRef<CoordinatorAgent>();
@@ -87,14 +89,70 @@ export const useAgentSystem = (): UseAgentSystemReturn => {
       }
     );
 
+    // Add centralized event subscribers with UI state updates (only once)
+    if (!eventSubscribersInitialized.current) {
+      eventBusRef.current.subscribe('agent_registered', (event) => {
+        console.log('🎉 Agent registered successfully:', event.data?.agentId || event.data);
+        // Could trigger UI update for agent list
+      });
+
+      eventBusRef.current.subscribe('task_created', (event) => {
+        console.log('📋 New task created:', event.data?.task?.description || event.data);
+        // Could update task counter in UI
+      });
+
+      eventBusRef.current.subscribe('task_assigned', (event) => {
+        console.log('🎯 Task assigned:', event.data?.agentId || event.data);
+        // Could show assignment animation
+      });
+
+      eventBusRef.current.subscribe('task_completed', (event) => {
+        console.log('✅ Task completed successfully:', event.data?.result || event.data);
+        // Could show success notification
+      });
+
+      eventBusRef.current.subscribe('task_failed', (event) => {
+        console.log('❌ Task failed (handled gracefully):', event.data?.error || event.data);
+        // Could show retry option
+      });
+
+      eventBusRef.current.subscribe('agent_available', (event) => {
+        console.log('🟢 Agent available for new tasks:', event.data?.agentId || event.data);
+        // Could update agent status indicator
+      });
+
+      eventBusRef.current.subscribe('agent_busy', (event) => {
+        console.log('🔴 Agent processing task:', event.data?.agentId || event.data);
+        // Could show loading state
+      });
+
+      eventBusRef.current.subscribe('collaboration_request', (event) => {
+        console.log('🤝 Collaboration initiated:', event.data?.agents || event.data);
+        // Could show collaboration animation
+      });
+      
+      eventSubscribersInitialized.current = true;
+      console.log('📡 Event subscribers initialized successfully');
+    }
+
     // Initialize traditional agents with event bus
     coordinatorRef.current = new CoordinatorAgent('coordinator_01', undefined, eventBusRef.current);
-    architectRef.current = new ArchitectAgent('architect_01', undefined, eventBusRef.current);
-    developerRef.current = new DeveloperAgent('developer_01', undefined, eventBusRef.current);
-    analystRef.current = new AnalystAgent('analyst_01', undefined, eventBusRef.current);
+    
+    // Use AI-enhanced agents for real functionality
+    try {
+      architectRef.current = new AIEnhancedArchitectAgent(eventBusRef.current);
+      developerRef.current = new AIEnhancedDeveloperAgent(eventBusRef.current);
+      analystRef.current = new AIEnhancedAnalystAgent(eventBusRef.current);
+      console.log('✅ AI-enhanced agents initialized');
+    } catch (error) {
+      console.warn('⚠️ Falling back to standard agents:', error);
+      architectRef.current = new ArchitectAgent('architect_01', undefined, eventBusRef.current);
+      developerRef.current = new DeveloperAgent('developer_01', undefined, eventBusRef.current);
+      analystRef.current = new AnalystAgent('analyst_01', undefined, eventBusRef.current);
+    }
 
     // Initialize swarm coordinator and agents
-    swarmCoordinatorRef.current = new SwarmCoordinator();
+    swarmCoordinatorRef.current = new SwarmCoordinator('swarm_coordinator', eventBusRef.current);
     frontendSwarmRef.current = new FrontendSwarmAgent();
     backendSwarmRef.current = new BackendSwarmAgent();
     testingSwarmRef.current = new TestingSwarmAgent();

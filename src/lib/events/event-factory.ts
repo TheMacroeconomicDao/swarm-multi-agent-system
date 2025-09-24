@@ -15,12 +15,19 @@ import {
 import { Task } from '@/types/agents';
 
 export class EventFactory {
+  private static counter = 0; // Статический счетчик для уникальности
+
   private static generateId(): string {
-    return `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substr(2, 12); // Увеличена длина случайной части
+    const counter = this.counter++;
+    return `evt_${timestamp}_${counter}_${random}`;
   }
 
   private static generateCorrelationId(): string {
-    return `corr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substr(2, 12);
+    return `corr_${timestamp}_${random}`;
   }
 
   // Task Events

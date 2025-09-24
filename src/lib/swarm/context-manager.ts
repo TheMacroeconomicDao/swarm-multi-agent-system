@@ -1,543 +1,766 @@
-// 🧠 CONTEXT MANAGER - Advanced Context Management and Optimization
-// Intelligent context compression and management for cost optimization
+// 🧠 CONTEXT MANAGER - Advanced Context Management and State Coordination
+// Intelligent context management for swarm-based multi-agent systems
 
-export interface ContextItem {
+import { AgentContext, AgentMessage, AgentResponse, Task } from '@/types/agents';
+
+export interface ContextData {
   id: string;
-  content: string;
-  importance: number; // 0-1
-  timestamp: Date;
-  accessCount: number;
-  lastAccessed: Date;
-  compressed: boolean;
-  size: number; // in tokens
-  tags: string[];
-  dependencies: string[];
+  type: 'session' | 'task' | 'agent' | 'project' | 'user';
+  data: Record<string, any>;
+  metadata: {
+    createdAt: Date;
+    updatedAt: Date;
+    version: number;
+    source: string;
+    priority: 'low' | 'medium' | 'high' | 'critical';
+    tags: string[];
+    dependencies: string[];
+  };
+  access: {
+    read: string[];
+    write: string[];
+    admin: string[];
+  };
+  lifecycle: {
+    ttl?: number; // time to live in seconds
+    maxSize?: number; // max size in bytes
+    compression?: boolean;
+    encryption?: boolean;
+  };
 }
 
-export interface ContextSummary {
-  totalItems: number;
+export interface ContextQuery {
+  id?: string;
+  type?: string;
+  tags?: string[];
+  source?: string;
+  priority?: string;
+  timeRange?: {
+    from: Date;
+    to: Date;
+  };
+  size?: {
+    min: number;
+    max: number;
+  };
+  limit?: number;
+  offset?: number;
+}
+
+export interface ContextMetrics {
+  totalContexts: number;
+  contextsByType: Record<string, number>;
+  contextsByPriority: Record<string, number>;
+  averageSize: number;
   totalSize: number;
-  compressedSize: number;
+  hitRate: number;
+  missRate: number;
   compressionRatio: number;
-  importantItems: ContextItem[];
-  recentItems: ContextItem[];
-  frequentlyAccessed: ContextItem[];
+  encryptionRatio: number;
+  lastCleanup: Date;
+  nextCleanup: Date;
 }
 
-export interface SwarmContext {
-  sessionId: string;
-  taskId: string;
-  agents: string[];
-  sharedKnowledge: Map<string, any>;
-  conversationHistory: ContextItem[];
-  codeContext: ContextItem[];
-  requirements: ContextItem[];
-  constraints: ContextItem[];
-  decisions: ContextItem[];
-  metadata: Record<string, any>;
-  lastUpdated: Date;
+export interface IContextManager {
+  storeContext(context: Omit<ContextData, 'metadata'> & { metadata?: Partial<ContextData['metadata']> }): Promise<string>;
+  getContext(id: string): Promise<ContextData | null>;
+  updateContext(id: string, updates: Partial<ContextData>): Promise<boolean>;
+  deleteContext(id: string): Promise<boolean>;
+  queryContexts(query: ContextQuery): Promise<ContextData[]>;
+  getSessionContext(sessionId: string, key: string): any;
+  setSessionContext(sessionId: string, key: string, value: any): void;
+  getTaskContext(taskId: string, key: string): any;
+  setTaskContext(taskId: string, key: string, value: any): void;
+  getAgentContext(agentId: string, key: string): any;
+  setAgentContext(agentId: string, key: string, value: any): void;
+  cleanupExpiredContexts(): Promise<number>;
+  getMetrics(): ContextMetrics;
+  reset(): Promise<void>;
+  extractSwarmContext(input: string, context: any): any;
+  synthesizeResults(results: any[]): Promise<any>;
+  destroy(): void;
 }
 
-export class ContextManager {
-  private contexts: Map<string, SwarmContext> = new Map();
-  private compressionThreshold: number = 1000; // tokens
-  private maxContextSize: number = 4000; // tokens
-  private importanceThreshold: number = 0.7;
-  private accessThreshold: number = 3;
+export class ContextManager implements IContextManager {
+  private contexts: Map<string, ContextData> = new Map();
+  private sessionContexts: Map<string, Map<string, any>> = new Map();
+  private taskContexts: Map<string, Map<string, any>> = new Map();
+  private agentContexts: Map<string, Map<string, any>> = new Map();
+  private metrics: ContextMetrics;
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor() {
-    this.initializeContextManager();
-  }
-
-  // 🧠 Context Management
-  public createSwarmContext(sessionId: string, taskId: string, agents: string[]): SwarmContext {
-    const context: SwarmContext = {
-      sessionId,
-      taskId,
-      agents,
-      sharedKnowledge: new Map(),
-      conversationHistory: [],
-      codeContext: [],
-      requirements: [],
-      constraints: [],
-      decisions: [],
-      metadata: {},
-      lastUpdated: new Date()
+    this.metrics = {
+      totalContexts: 0,
+      contextsByType: {},
+      contextsByPriority: {},
+      averageSize: 0,
+      totalSize: 0,
+      hitRate: 0,
+      missRate: 0,
+      compressionRatio: 0,
+      encryptionRatio: 0,
+      lastCleanup: new Date(),
+      nextCleanup: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
     };
 
-    this.contexts.set(sessionId, context);
+    this.startCleanupScheduler();
+  }
+
+  /**
+   * Store context data with intelligent management
+   */
+  async storeContext(context: Omit<ContextData, 'metadata'> & { 
+    metadata?: Partial<ContextData['metadata']> 
+  }): Promise<string> {
+    const now = new Date();
+    const contextData: ContextData = {
+      ...context,
+      metadata: {
+        createdAt: now,
+        updatedAt: now,
+        version: 1,
+        source: 'swarm-coordinator',
+        priority: 'medium',
+        tags: [],
+        dependencies: [],
+        ...context.metadata
+      }
+    };
+
+    // Apply lifecycle policies
+    if (contextData.lifecycle.ttl) {
+      setTimeout(() => {
+        this.deleteContext(context.id);
+      }, contextData.lifecycle.ttl * 1000);
+    }
+
+    // Check size limits
+    if (contextData.lifecycle.maxSize) {
+      const size = this.calculateSize(contextData);
+      if (size > contextData.lifecycle.maxSize) {
+        throw new Error(`Context size ${size} exceeds maximum ${contextData.lifecycle.maxSize}`);
+      }
+    }
+
+    // Apply compression if enabled
+    if (contextData.lifecycle.compression) {
+      contextData.data = await this.compressData(contextData.data);
+    }
+
+    // Apply encryption if enabled
+    if (contextData.lifecycle.encryption) {
+      contextData.data = await this.encryptData(contextData.data);
+    }
+
+    this.contexts.set(context.id, contextData);
+    this.updateMetrics();
+    
+    return context.id;
+  }
+
+  /**
+   * Retrieve context data with intelligent caching
+   */
+  async getContext(id: string): Promise<ContextData | null> {
+    const context = this.contexts.get(id);
+    if (!context) {
+      this.metrics.missRate++;
+      return null;
+    }
+
+    this.metrics.hitRate++;
+
+    // Check if context has expired
+    if (context.lifecycle.ttl) {
+      const age = Date.now() - context.metadata.updatedAt.getTime();
+      if (age > context.lifecycle.ttl * 1000) {
+        this.deleteContext(id);
+        return null;
+      }
+    }
+
+    // Decompress if needed
+    if (context.lifecycle.compression) {
+      context.data = await this.decompressData(context.data);
+    }
+
+    // Decrypt if needed
+    if (context.lifecycle.encryption) {
+      context.data = await this.decryptData(context.data);
+    }
+
     return context;
   }
 
-  public getSwarmContext(sessionId: string): SwarmContext | null {
-    return this.contexts.get(sessionId) || null;
-  }
-
-  public addContextItem(
-    sessionId: string,
-    category: 'conversation' | 'code' | 'requirements' | 'constraints' | 'decisions',
-    content: string,
-    importance: number = 0.5,
-    tags: string[] = []
-  ): string {
-    const context = this.contexts.get(sessionId);
-    if (!context) {
-      throw new Error(`Context for session ${sessionId} not found`);
+  /**
+   * Update existing context data
+   */
+  async updateContext(id: string, updates: Partial<ContextData>): Promise<boolean> {
+    const existing = this.contexts.get(id);
+    if (!existing) {
+      return false;
     }
 
-    const item: ContextItem = {
-      id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      content,
-      importance,
-      timestamp: new Date(),
-      accessCount: 0,
-      lastAccessed: new Date(),
-      compressed: false,
-      size: this.estimateTokenCount(content),
-      tags,
-      dependencies: []
+    const updated: ContextData = {
+      ...existing,
+      ...updates,
+      metadata: {
+        ...existing.metadata,
+        ...updates.metadata,
+        updatedAt: new Date(),
+        version: existing.metadata.version + 1
+      }
     };
 
-    context[`${category}History`] = [
-      ...(context[`${category}History`] as ContextItem[] || []),
-      item
-    ];
+    this.contexts.set(id, updated);
+    this.updateMetrics();
     
-    context.lastUpdated = new Date();
-
-    // Auto-compress if needed
-    this.autoCompressContext(sessionId);
-
-    return item.id;
+    return true;
   }
 
-  public getContextSummary(sessionId: string): ContextSummary {
-    const context = this.contexts.get(sessionId);
-    if (!context) {
-      throw new Error(`Context for session ${sessionId} not found`);
+  /**
+   * Delete context data
+   */
+  async deleteContext(id: string): Promise<boolean> {
+    const deleted = this.contexts.delete(id);
+    if (deleted) {
+      this.updateMetrics();
+    }
+    return deleted;
+  }
+
+  /**
+   * Query contexts with advanced filtering
+   */
+  async queryContexts(query: ContextQuery): Promise<ContextData[]> {
+    let results = Array.from(this.contexts.values());
+
+    // Apply filters
+    if (query.id) {
+      results = results.filter(ctx => ctx.id === query.id);
     }
 
-    const allItems = [
-      ...context.conversationHistory,
-      ...context.codeContext,
-      ...context.requirements,
-      ...context.constraints,
-      ...context.decisions
-    ];
+    if (query.type) {
+      results = results.filter(ctx => ctx.type === query.type);
+    }
 
-    const totalSize = allItems.reduce((sum, item) => sum + item.size, 0);
-    const compressedSize = allItems
-      .filter(item => item.compressed)
-      .reduce((sum, item) => sum + item.size, 0);
+    if (query.tags && query.tags.length > 0) {
+      results = results.filter(ctx => 
+        query.tags!.some(tag => ctx.metadata.tags.includes(tag))
+      );
+    }
 
-    return {
-      totalItems: allItems.length,
-      totalSize,
-      compressedSize,
-      compressionRatio: totalSize > 0 ? compressedSize / totalSize : 0,
-      importantItems: allItems.filter(item => item.importance >= this.importanceThreshold),
-      recentItems: allItems
-        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-        .slice(0, 10),
-      frequentlyAccessed: allItems
-        .filter(item => item.accessCount >= this.accessThreshold)
-        .sort((a, b) => b.accessCount - a.accessCount)
-        .slice(0, 10)
-    };
+    if (query.source) {
+      results = results.filter(ctx => ctx.metadata.source === query.source);
+    }
+
+    if (query.priority) {
+      results = results.filter(ctx => ctx.metadata.priority === query.priority);
+    }
+
+    if (query.timeRange) {
+      results = results.filter(ctx => 
+        ctx.metadata.createdAt >= query.timeRange!.from &&
+        ctx.metadata.createdAt <= query.timeRange!.to
+      );
+    }
+
+    if (query.size) {
+      results = results.filter(ctx => {
+        const size = this.calculateSize(ctx);
+        return size >= query.size!.min && size <= query.size!.max;
+      });
+    }
+
+    // Apply pagination
+    if (query.offset) {
+      results = results.slice(query.offset);
+    }
+
+    if (query.limit) {
+      results = results.slice(0, query.limit);
+    }
+
+    return results;
   }
 
-  // 🗜️ Context Compression
-  public compressContext(sessionId: string, targetSize?: number): void {
-    const context = this.contexts.get(sessionId);
-    if (!context) return;
+  /**
+   * Get session-specific context
+   */
+  getSessionContext(sessionId: string, key: string): any {
+    const session = this.sessionContexts.get(sessionId);
+    return session?.get(key);
+  }
 
-    const target = targetSize || this.maxContextSize;
-    const summary = this.getContextSummary(sessionId);
+  /**
+   * Set session-specific context
+   */
+  setSessionContext(sessionId: string, key: string, value: any): void {
+    if (!this.sessionContexts.has(sessionId)) {
+      this.sessionContexts.set(sessionId, new Map());
+    }
+    this.sessionContexts.get(sessionId)!.set(key, value);
+  }
 
-    if (summary.totalSize <= target) return;
+  /**
+   * Get task-specific context
+   */
+  getTaskContext(taskId: string, key: string): any {
+    const task = this.taskContexts.get(taskId);
+    return task?.get(key);
+  }
 
-    // Sort items by importance and recency
-    const allItems = [
-      ...context.conversationHistory,
-      ...context.codeContext,
-      ...context.requirements,
-      ...context.constraints,
-      ...context.decisions
-    ];
+  /**
+   * Set task-specific context
+   */
+  setTaskContext(taskId: string, key: string, value: any): void {
+    if (!this.taskContexts.has(taskId)) {
+      this.taskContexts.set(taskId, new Map());
+    }
+    this.taskContexts.get(taskId)!.set(key, value);
+  }
 
-    const sortedItems = allItems.sort((a, b) => {
-      const scoreA = this.calculateItemScore(a);
-      const scoreB = this.calculateItemScore(b);
-      return scoreB - scoreA;
-    });
+  /**
+   * Get agent-specific context
+   */
+  getAgentContext(agentId: string, key: string): any {
+    const agent = this.agentContexts.get(agentId);
+    return agent?.get(key);
+  }
 
-    // Keep most important items, compress or remove others
-    let currentSize = 0;
-    const itemsToKeep: ContextItem[] = [];
-    const itemsToCompress: ContextItem[] = [];
-    const itemsToRemove: ContextItem[] = [];
+  /**
+   * Set agent-specific context
+   */
+  setAgentContext(agentId: string, key: string, value: any): void {
+    if (!this.agentContexts.has(agentId)) {
+      this.agentContexts.set(agentId, new Map());
+    }
+    this.agentContexts.get(agentId)!.set(key, value);
+  }
 
-    for (const item of sortedItems) {
-      if (currentSize + item.size <= target) {
-        itemsToKeep.push(item);
-        currentSize += item.size;
-      } else if (item.importance >= 0.8) {
-        // Compress high-importance items
-        const compressedItem = this.compressItem(item);
-        if (currentSize + compressedItem.size <= target) {
-          itemsToCompress.push(compressedItem);
-          currentSize += compressedItem.size;
-        } else {
-          itemsToRemove.push(item);
+  /**
+   * Clear expired contexts
+   */
+  async cleanupExpiredContexts(): Promise<number> {
+    let cleaned = 0;
+    const now = Date.now();
+
+    for (const [id, context] of this.contexts.entries()) {
+      if (context.lifecycle.ttl) {
+        const age = now - context.metadata.updatedAt.getTime();
+        if (age > context.lifecycle.ttl * 1000) {
+          this.contexts.delete(id);
+          cleaned++;
         }
-      } else {
-        itemsToRemove.push(item);
       }
     }
 
-    // Update context with compressed items
-    this.updateContextWithCompressedItems(context, itemsToKeep, itemsToCompress, itemsToRemove);
-  }
-
-  public autoCompressContext(sessionId: string): void {
-    const summary = this.getContextSummary(sessionId);
+    this.metrics.lastCleanup = new Date();
+    this.metrics.nextCleanup = new Date(Date.now() + 24 * 60 * 60 * 1000);
     
-    if (summary.totalSize > this.compressionThreshold) {
-      this.compressContext(sessionId);
-    }
+    return cleaned;
   }
 
-  // 🔍 Context Analysis and Synthesis
-  public extractSwarmContext(input: string, context: any): any {
-    return {
-      input,
-      context,
-      extractedEntities: this.extractEntities(input),
-      extractedIntent: this.extractIntent(input),
-      extractedRequirements: this.extractRequirements(input),
-      contextRelevance: this.calculateContextRelevance(input, context),
-      timestamp: new Date()
+  /**
+   * Get context metrics
+   */
+  getMetrics(): ContextMetrics {
+    return { ...this.metrics };
+  }
+
+  /**
+   * Reset all contexts (use with caution)
+   */
+  async reset(): Promise<void> {
+    this.contexts.clear();
+    this.sessionContexts.clear();
+    this.taskContexts.clear();
+    this.agentContexts.clear();
+    this.updateMetrics();
+  }
+
+  // Private helper methods
+
+  private calculateSize(context: ContextData): number {
+    return JSON.stringify(context).length;
+  }
+
+  private async compressData(data: any): Promise<any> {
+    // Simple compression simulation - in real implementation use actual compression
+    return { compressed: true, data: JSON.stringify(data) };
+  }
+
+  private async decompressData(data: any): Promise<any> {
+    // Simple decompression simulation
+    if (data.compressed) {
+      return JSON.parse(data.data);
+    }
+    return data;
+  }
+
+  private async encryptData(data: any): Promise<any> {
+    // Simple encryption simulation - in real implementation use actual encryption
+    return { encrypted: true, data: JSON.stringify(data) };
+  }
+
+  private async decryptData(data: any): Promise<any> {
+    // Simple decryption simulation
+    if (data.encrypted) {
+      return JSON.parse(data.data);
+    }
+    return data;
+  }
+
+  private updateMetrics(): void {
+    const contexts = Array.from(this.contexts.values());
+    
+    this.metrics.totalContexts = contexts.length;
+    this.metrics.contextsByType = {};
+    this.metrics.contextsByPriority = {};
+    this.metrics.totalSize = 0;
+
+    for (const context of contexts) {
+      // Count by type
+      this.metrics.contextsByType[context.type] = 
+        (this.metrics.contextsByType[context.type] || 0) + 1;
+      
+      // Count by priority
+      this.metrics.contextsByPriority[context.metadata.priority] = 
+        (this.metrics.contextsByPriority[context.metadata.priority] || 0) + 1;
+      
+      // Calculate total size
+      this.metrics.totalSize += this.calculateSize(context);
+    }
+
+    this.metrics.averageSize = this.metrics.totalContexts > 0 
+      ? this.metrics.totalSize / this.metrics.totalContexts 
+      : 0;
+
+    // Calculate compression and encryption ratios
+    const compressed = contexts.filter(c => c.lifecycle.compression).length;
+    const encrypted = contexts.filter(c => c.lifecycle.encryption).length;
+    
+    this.metrics.compressionRatio = this.metrics.totalContexts > 0 
+      ? (compressed / this.metrics.totalContexts) * 100 
+      : 0;
+    
+    this.metrics.encryptionRatio = this.metrics.totalContexts > 0 
+      ? (encrypted / this.metrics.totalContexts) * 100 
+      : 0;
+  }
+
+  private startCleanupScheduler(): void {
+    this.cleanupInterval = setInterval(async () => {
+      await this.cleanupExpiredContexts();
+    }, 60 * 60 * 1000); // Run every hour
+  }
+
+  /**
+   * Extract swarm-specific context from input and general context
+   */
+  extractSwarmContext(input: string, context: any): any {
+    const swarmContext = {
+      input: input,
+      timestamp: new Date(),
+      sessionId: context?.sessionId || 'default',
+      taskId: context?.taskId || null,
+      agentId: context?.agentId || null,
+      swarmState: {
+        activeAgents: context?.activeAgents || [],
+        completedTasks: context?.completedTasks || [],
+        pendingTasks: context?.pendingTasks || [],
+        swarmMetrics: context?.swarmMetrics || {}
+      },
+      extractedData: {
+        keywords: this.extractKeywords(input),
+        intent: this.detectIntent(input),
+        complexity: this.assessComplexity(input),
+        domain: this.identifyDomain(input),
+        priority: this.determinePriority(input, context)
+      },
+      contextHistory: this.getRelevantHistory(context),
+      swarmInsights: this.generateSwarmInsights(input, context)
     };
+
+    return swarmContext;
   }
 
-  public async synthesizeResults(results: any[]): Promise<string> {
-    if (results.length === 0) return 'No results to synthesize';
-
-    // Group results by type
-    const groupedResults = this.groupResultsByType(results);
-    
-    // Create synthesis for each group
-    const syntheses = [];
-    
-    for (const [type, groupResults] of Object.entries(groupedResults)) {
-      const synthesis = await this.synthesizeGroupResults(type, groupResults);
-      syntheses.push(synthesis);
+  /**
+   * Synthesize multiple results into a coherent response
+   */
+  async synthesizeResults(results: any[]): Promise<any> {
+    if (!results || results.length === 0) {
+      return {
+        synthesis: 'No results to synthesize',
+        confidence: 0,
+        recommendations: []
+      };
     }
-    
-    // Combine syntheses
-    return this.combineSyntheses(syntheses);
-  }
 
-  public findRelevantContext(sessionId: string, query: string, limit: number = 5): ContextItem[] {
-    const context = this.contexts.get(sessionId);
-    if (!context) return [];
-
-    const allItems = [
-      ...context.conversationHistory,
-      ...context.codeContext,
-      ...context.requirements,
-      ...context.constraints,
-      ...context.decisions
-    ];
-
-    // Calculate relevance scores
-    const scoredItems = allItems.map(item => ({
-      item,
-      score: this.calculateRelevanceScore(item, query)
-    }));
-
-    // Sort by relevance and return top items
-    return scoredItems
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-      .map(scored => scored.item);
-  }
-
-  // 💰 Cost Optimization
-  public optimizeContextForCost(sessionId: string, maxTokens: number): void {
-    const context = this.contexts.get(sessionId);
-    if (!context) return;
-
-    // Remove low-importance items first
-    this.removeLowImportanceItems(context, maxTokens * 0.3);
-    
-    // Compress medium-importance items
-    this.compressMediumImportanceItems(context, maxTokens * 0.5);
-    
-    // Keep only high-importance items if still over limit
-    if (this.getContextSummary(sessionId).totalSize > maxTokens) {
-      this.keepOnlyHighImportanceItems(context, maxTokens);
-    }
-  }
-
-  public estimateContextCost(sessionId: string, costPerToken: number = 0.0001): number {
-    const summary = this.getContextSummary(sessionId);
-    return summary.totalSize * costPerToken;
-  }
-
-  // 🧠 Private Helper Methods
-  private initializeContextManager(): void {
-    console.log('🧠 Context Manager initialized');
-  }
-
-  private estimateTokenCount(text: string): number {
-    // Simple token estimation (rough approximation)
-    return Math.ceil(text.length / 4);
-  }
-
-  private calculateItemScore(item: ContextItem): number {
-    const importanceWeight = 0.4;
-    const recencyWeight = 0.3;
-    const accessWeight = 0.3;
-    
-    const recencyScore = Math.max(0, 1 - (Date.now() - item.timestamp.getTime()) / (24 * 60 * 60 * 1000));
-    const accessScore = Math.min(1, item.accessCount / 10);
-    
-    return (
-      item.importance * importanceWeight +
-      recencyScore * recencyWeight +
-      accessScore * accessWeight
-    );
-  }
-
-  private compressItem(item: ContextItem): ContextItem {
-    // Simple compression - keep first and last parts, summarize middle
-    const words = item.content.split(' ');
-    if (words.length <= 20) return item;
-    
-    const firstPart = words.slice(0, 10).join(' ');
-    const lastPart = words.slice(-10).join(' ');
-    const middleSummary = `[... ${words.length - 20} words ...]`;
-    
-    const compressedContent = `${firstPart} ${middleSummary} ${lastPart}`;
-    
-    return {
-      ...item,
-      content: compressedContent,
-      compressed: true,
-      size: this.estimateTokenCount(compressedContent)
+    const synthesis = {
+      summary: this.createSummary(results),
+      insights: this.extractInsights(results),
+      conflicts: this.identifyConflicts(results),
+      consensus: this.findConsensus(results),
+      recommendations: this.generateRecommendations(results),
+      confidence: this.calculateConfidence(results),
+      metadata: {
+        resultCount: results.length,
+        synthesisTimestamp: new Date(),
+        qualityScore: this.assessQuality(results)
+      }
     };
+
+    return synthesis;
   }
 
-  private updateContextWithCompressedItems(
-    context: SwarmContext,
-    itemsToKeep: ContextItem[],
-    itemsToCompress: ContextItem[],
-    itemsToRemove: ContextItem[]
-  ): void {
-    // Update each category with the new items
-    const categories = ['conversation', 'code', 'requirements', 'constraints', 'decisions'] as const;
+  // Private helper methods for swarm context extraction
+
+  private extractKeywords(input: string): string[] {
+    // Simple keyword extraction - in real implementation use NLP
+    const words = input.toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .split(/\s+/)
+      .filter(word => word.length > 3);
     
-    categories.forEach(category => {
-      const categoryKey = `${category}History` as keyof SwarmContext;
-      const categoryItems = context[categoryKey] as ContextItem[];
-      
-      // Filter out removed items
-      const remainingItems = categoryItems.filter(item => 
-        !itemsToRemove.some(removed => removed.id === item.id)
-      );
-      
-      // Add compressed items
-      const compressedItems = itemsToCompress.filter(item => 
-        categoryItems.some(original => original.id === item.id)
-      );
-      
-      context[categoryKey] = [...remainingItems, ...compressedItems] as any;
-    });
-    
-    context.lastUpdated = new Date();
+    return [...new Set(words)].slice(0, 10);
   }
 
-  private extractEntities(input: string): string[] {
-    // Simple entity extraction - would use NLP in practice
-    const entities = [];
-    const words = input.toLowerCase().split(' ');
+  private detectIntent(input: string): string {
+    // Simple intent detection - in real implementation use ML
+    const lowerInput = input.toLowerCase();
     
-    const techKeywords = ['react', 'typescript', 'nodejs', 'python', 'api', 'database', 'frontend', 'backend'];
-    const actionKeywords = ['create', 'build', 'implement', 'fix', 'optimize', 'test', 'deploy'];
+    if (lowerInput.includes('create') || lowerInput.includes('build')) return 'create';
+    if (lowerInput.includes('fix') || lowerInput.includes('debug')) return 'fix';
+    if (lowerInput.includes('optimize') || lowerInput.includes('improve')) return 'optimize';
+    if (lowerInput.includes('analyze') || lowerInput.includes('review')) return 'analyze';
+    if (lowerInput.includes('test') || lowerInput.includes('validate')) return 'test';
     
-    words.forEach(word => {
-      if (techKeywords.includes(word)) entities.push(`tech:${word}`);
-      if (actionKeywords.includes(word)) entities.push(`action:${word}`);
-    });
-    
-    return entities;
-  }
-
-  private extractIntent(input: string): string {
-    // Simple intent extraction
-    if (input.includes('create') || input.includes('build')) return 'creation';
-    if (input.includes('fix') || input.includes('bug')) return 'fixing';
-    if (input.includes('optimize') || input.includes('improve')) return 'optimization';
-    if (input.includes('test')) return 'testing';
-    if (input.includes('deploy')) return 'deployment';
     return 'general';
   }
 
-  private extractRequirements(input: string): string[] {
-    // Extract requirements from input
-    const requirements = [];
-    const sentences = input.split(/[.!?]+/);
+  private assessComplexity(input: string): number {
+    // Simple complexity assessment - in real implementation use more sophisticated analysis
+    const complexity = Math.min(10, Math.max(1, 
+      (input.length / 100) + 
+      (input.split(' ').length / 20) +
+      (input.split('\n').length / 5)
+    ));
     
-    sentences.forEach(sentence => {
-      if (sentence.includes('should') || sentence.includes('must') || sentence.includes('need')) {
-        requirements.push(sentence.trim());
-      }
-    });
-    
-    return requirements;
+    return Math.round(complexity);
   }
 
-  private calculateContextRelevance(input: string, context: any): number {
-    // Calculate how relevant the context is to the input
-    const inputWords = input.toLowerCase().split(' ');
-    const contextWords = JSON.stringify(context).toLowerCase().split(' ');
+  private identifyDomain(input: string): string[] {
+    // Simple domain identification - in real implementation use domain-specific analysis
+    const domains = [];
+    const lowerInput = input.toLowerCase();
     
-    const commonWords = inputWords.filter(word => contextWords.includes(word));
-    return commonWords.length / inputWords.length;
+    if (lowerInput.includes('react') || lowerInput.includes('component')) domains.push('frontend');
+    if (lowerInput.includes('api') || lowerInput.includes('server')) domains.push('backend');
+    if (lowerInput.includes('database') || lowerInput.includes('sql')) domains.push('database');
+    if (lowerInput.includes('test') || lowerInput.includes('spec')) domains.push('testing');
+    if (lowerInput.includes('deploy') || lowerInput.includes('ci/cd')) domains.push('devops');
+    if (lowerInput.includes('ui') || lowerInput.includes('design')) domains.push('ui/ux');
+    
+    return domains.length > 0 ? domains : ['general'];
   }
 
-  private groupResultsByType(results: any[]): Record<string, any[]> {
-    const groups: Record<string, any[]> = {};
+  private determinePriority(input: string, context: any): 'low' | 'medium' | 'high' | 'critical' {
+    // Simple priority determination
+    const lowerInput = input.toLowerCase();
     
-    results.forEach(result => {
-      const type = result.response?.type || 'unknown';
-      if (!groups[type]) groups[type] = [];
-      groups[type].push(result);
-    });
-    
-    return groups;
-  }
-
-  private async synthesizeGroupResults(type: string, results: any[]): Promise<string> {
-    // Simple synthesis based on type
-    switch (type) {
-      case 'code':
-        return `Generated ${results.length} code solutions with average confidence ${this.calculateAverageConfidence(results)}%`;
-      case 'analysis':
-        return `Performed ${results.length} analyses covering different aspects of the problem`;
-      case 'plan':
-        return `Created ${results.length} implementation plans with varying approaches`;
-      default:
-        return `Completed ${results.length} ${type} tasks`;
+    if (lowerInput.includes('urgent') || lowerInput.includes('critical') || lowerInput.includes('asap')) {
+      return 'critical';
     }
+    
+    if (lowerInput.includes('important') || lowerInput.includes('priority') || context?.priority === 'high') {
+      return 'high';
+    }
+    
+    if (lowerInput.includes('low') || context?.priority === 'low') {
+      return 'low';
+    }
+    
+    return 'medium';
   }
 
-  private calculateAverageConfidence(results: any[]): number {
-    const totalConfidence = results.reduce((sum, result) => 
-      sum + (result.response?.confidence || 0), 0);
-    return Math.round((totalConfidence / results.length) * 100);
+  private getRelevantHistory(context: any): any[] {
+    // Get relevant context history
+    if (!context?.history) return [];
+    
+    return context.history
+      .filter((item: any) => item.timestamp > Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+      .slice(-10); // Last 10 items
   }
 
-  private combineSyntheses(syntheses: string[]): string {
-    return syntheses.join('\n\n');
+  private generateSwarmInsights(input: string, context: any): any {
+    return {
+      swarmReadiness: this.assessSwarmReadiness(context),
+      optimalAgentCount: this.calculateOptimalAgentCount(input, context),
+      estimatedDuration: this.estimateDuration(input, context),
+      resourceRequirements: this.assessResourceRequirements(input, context),
+      riskFactors: this.identifyRiskFactors(input, context)
+    };
   }
 
-  private calculateRelevanceScore(item: ContextItem, query: string): number {
-    const queryWords = query.toLowerCase().split(' ');
-    const itemWords = item.content.toLowerCase().split(' ');
+  private assessSwarmReadiness(context: any): number {
+    // Assess if swarm is ready for the task
+    const activeAgents = context?.activeAgents?.length || 0;
+    const availableResources = context?.availableResources || 0;
     
-    const commonWords = queryWords.filter(word => itemWords.includes(word));
-    const wordScore = commonWords.length / queryWords.length;
-    
-    const tagScore = item.tags.some(tag => 
-      queryWords.some(word => tag.toLowerCase().includes(word))
-    ) ? 0.3 : 0;
-    
-    return wordScore + tagScore + (item.importance * 0.2);
+    return Math.min(100, (activeAgents * 20) + (availableResources * 10));
   }
 
-  private removeLowImportanceItems(context: SwarmContext, maxTokens: number): void {
-    const categories = ['conversation', 'code', 'requirements', 'constraints', 'decisions'] as const;
+  private calculateOptimalAgentCount(input: string, context: any): number {
+    const complexity = this.assessComplexity(input);
+    const domainCount = this.identifyDomain(input).length;
     
-    categories.forEach(category => {
-      const categoryKey = `${category}History` as keyof SwarmContext;
-      const items = context[categoryKey] as ContextItem[];
-      
-      // Sort by importance and remove low-importance items
-      const sortedItems = items.sort((a, b) => b.importance - a.importance);
-      let currentSize = 0;
-      const keptItems: ContextItem[] = [];
-      
-      for (const item of sortedItems) {
-        if (currentSize + item.size <= maxTokens || item.importance >= 0.7) {
-          keptItems.push(item);
-          currentSize += item.size;
+    return Math.min(10, Math.max(1, Math.ceil(complexity / 2) + domainCount));
+  }
+
+  private estimateDuration(input: string, context: any): number {
+    const complexity = this.assessComplexity(input);
+    const domainCount = this.identifyDomain(input).length;
+    
+    return Math.max(5, complexity * domainCount * 2); // minutes
+  }
+
+  private assessResourceRequirements(input: string, context: any): any {
+    return {
+      cpu: this.assessComplexity(input) * 10,
+      memory: this.assessComplexity(input) * 50,
+      network: this.identifyDomain(input).length * 5,
+      storage: this.assessComplexity(input) * 20
+    };
+  }
+
+  private identifyRiskFactors(input: string, context: any): string[] {
+    const risks = [];
+    const lowerInput = input.toLowerCase();
+    
+    if (lowerInput.includes('security') || lowerInput.includes('auth')) risks.push('security');
+    if (lowerInput.includes('performance') || lowerInput.includes('optimize')) risks.push('performance');
+    if (lowerInput.includes('database') || lowerInput.includes('data')) risks.push('data-integrity');
+    if (lowerInput.includes('deploy') || lowerInput.includes('production')) risks.push('deployment');
+    
+    return risks;
+  }
+
+  // Private helper methods for result synthesis
+
+  private createSummary(results: any[]): string {
+    const successCount = results.filter(r => r.success).length;
+    const totalCount = results.length;
+    
+    return `${successCount}/${totalCount} operations completed successfully`;
+  }
+
+  private extractInsights(results: any[]): string[] {
+    const insights = [];
+    
+    if (results.length > 1) {
+      insights.push(`Multiple agents collaborated on this task`);
+    }
+    
+    const avgQuality = results.reduce((sum, r) => sum + (r.quality || 0), 0) / results.length;
+    if (avgQuality > 8) {
+      insights.push(`High quality results achieved (${avgQuality.toFixed(1)}/10)`);
+    }
+    
+    return insights;
+  }
+
+  private identifyConflicts(results: any[]): any[] {
+    const conflicts = [];
+    
+    // Simple conflict detection - in real implementation use more sophisticated analysis
+    for (let i = 0; i < results.length; i++) {
+      for (let j = i + 1; j < results.length; j++) {
+        if (results[i].output && results[j].output && 
+            results[i].output !== results[j].output) {
+          conflicts.push({
+            type: 'output_conflict',
+            agents: [results[i].agentId, results[j].agentId],
+            description: 'Conflicting outputs detected'
+          });
         }
       }
-      
-      context[categoryKey] = keptItems as any;
-    });
-  }
-
-  private compressMediumImportanceItems(context: SwarmContext, maxTokens: number): void {
-    const categories = ['conversation', 'code', 'requirements', 'constraints', 'decisions'] as const;
+    }
     
-    categories.forEach(category => {
-      const categoryKey = `${category}History` as keyof SwarmContext;
-      const items = context[categoryKey] as ContextItem[];
-      
-      const mediumImportanceItems = items.filter(item => 
-        item.importance >= 0.5 && item.importance < 0.7 && !item.compressed
-      );
-      
-      mediumImportanceItems.forEach(item => {
-        const compressedItem = this.compressItem(item);
-        const index = items.findIndex(i => i.id === item.id);
-        if (index !== -1) {
-          items[index] = compressedItem;
-        }
-      });
-    });
+    return conflicts;
   }
 
-  private keepOnlyHighImportanceItems(context: SwarmContext, maxTokens: number): void {
-    const categories = ['conversation', 'code', 'requirements', 'constraints', 'decisions'] as const;
+  private findConsensus(results: any[]): any {
+    const consensus = {
+      agreement: 0,
+      commonElements: [],
+      divergentElements: []
+    };
     
-    categories.forEach(category => {
-      const categoryKey = `${category}History` as keyof SwarmContext;
-      const items = context[categoryKey] as ContextItem[];
-      
-      // Keep only high-importance items
-      const highImportanceItems = items
-        .filter(item => item.importance >= 0.8)
-        .sort((a, b) => b.importance - a.importance);
-      
-      let currentSize = 0;
-      const keptItems: ContextItem[] = [];
-      
-      for (const item of highImportanceItems) {
-        if (currentSize + item.size <= maxTokens) {
-          keptItems.push(item);
-          currentSize += item.size;
-        }
-      }
-      
-      context[categoryKey] = keptItems as any;
-    });
+    if (results.length === 1) {
+      consensus.agreement = 100;
+      consensus.commonElements = [results[0].output];
+      return consensus;
+    }
+    
+    // Simple consensus finding - in real implementation use more sophisticated analysis
+    const outputs = results.map(r => r.output).filter(Boolean);
+    const uniqueOutputs = [...new Set(outputs)];
+    
+    consensus.agreement = ((outputs.length - uniqueOutputs.length) / outputs.length) * 100;
+    consensus.commonElements = uniqueOutputs;
+    
+    return consensus;
   }
 
-  // Public API
-  public getContextSize(sessionId: string): number {
-    const summary = this.getContextSummary(sessionId);
-    return summary.totalSize;
+  private generateRecommendations(results: any[]): string[] {
+    const recommendations = [];
+    
+    const successRate = results.filter(r => r.success).length / results.length;
+    
+    if (successRate < 0.8) {
+      recommendations.push('Consider increasing agent coordination for better success rate');
+    }
+    
+    if (results.length > 5) {
+      recommendations.push('Large swarm detected - consider task decomposition');
+    }
+    
+    const avgTime = results.reduce((sum, r) => sum + (r.duration || 0), 0) / results.length;
+    if (avgTime > 300) { // 5 minutes
+      recommendations.push('Long execution time - consider optimization strategies');
+    }
+    
+    return recommendations;
   }
 
-  public clearContext(sessionId: string): void {
-    this.contexts.delete(sessionId);
+  private calculateConfidence(results: any[]): number {
+    if (results.length === 0) return 0;
+    
+    const successRate = results.filter(r => r.success).length / results.length;
+    const avgQuality = results.reduce((sum, r) => sum + (r.quality || 0), 0) / results.length;
+    const consensus = this.findConsensus(results);
+    
+    return Math.round((successRate * 40) + (avgQuality * 0.4) + (consensus.agreement * 0.2));
   }
 
-  public getAllContexts(): SwarmContext[] {
-    return Array.from(this.contexts.values());
+  private assessQuality(results: any[]): number {
+    if (results.length === 0) return 0;
+    
+    const avgQuality = results.reduce((sum, r) => sum + (r.quality || 0), 0) / results.length;
+    const completeness = results.filter(r => r.complete).length / results.length;
+    
+    return Math.round((avgQuality * 0.7) + (completeness * 30));
+  }
+
+  /**
+   * Cleanup resources
+   */
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
   }
 }
