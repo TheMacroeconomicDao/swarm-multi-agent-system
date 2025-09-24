@@ -285,6 +285,59 @@ const GlobalMissionDemo = () => {
     onToggleTheme: () => document.documentElement.classList.toggle('dark')
   };
 
+  // ——— Normalizers to ensure consistent UI data ———
+  const getDisplayName = (agentId: string, fallback?: string) => {
+    const found = realTimeAgents.find(a => (a as any).getAgentInfo?.().id === agentId);
+    if (found && (found as any).getAgentInfo) return (found as any).getAgentInfo().name;
+    return fallback || agentId || 'Agent';
+  };
+
+  const normalizeTimestamp = (ts: any): Date => {
+    if (ts instanceof Date) return ts;
+    if (typeof ts === 'number') return new Date(ts);
+    if (typeof ts === 'string') return new Date(ts);
+    return new Date();
+  };
+
+  const normalizeThought = (raw: any): AgentThought => {
+    const data = raw?.payload ?? raw;
+    const agentId = data?.agentId || data?.fromAgent || data?.agent || 'unknown_agent';
+    const agentName = data?.agentName || getDisplayName(agentId, data?.fromAgentName);
+    const thoughtText = (data?.thought ?? data?.content ?? data?.message ?? data?.text ?? '') as string;
+    const thoughtClean = String(thoughtText).trim();
+    return {
+      id: String(data?.id || `thought_${agentId}_${Date.now()}`),
+      agentId,
+      agentName,
+      model: data?.model || 'unknown-model',
+      thought: thoughtClean || '…',
+      reasoning: data?.reasoning || '',
+      confidence: typeof data?.confidence === 'number' ? data.confidence : 0.8,
+      timestamp: normalizeTimestamp(data?.timestamp),
+      processingTime: typeof data?.processingTime === 'number' ? data.processingTime : 0,
+      relatedThoughts: Array.isArray(data?.relatedThoughts) ? data.relatedThoughts : [],
+      tags: Array.isArray(data?.tags) ? data.tags : [],
+    } as AgentThought;
+  };
+
+  const normalizeMessage = (raw: any): AgentMessage => {
+    const data = raw?.payload ?? raw;
+    const fromAgent = data?.fromAgent || data?.agentId || 'unknown_agent';
+    const toAgent = data?.toAgent || data?.targetAgent || data?.agentTarget || '';
+    const content = (data?.content ?? data?.thought ?? data?.message ?? data?.text ?? '') as string;
+    const contentClean = String(content).trim();
+    return {
+      id: String(data?.id || `msg_${fromAgent}_${Date.now()}`),
+      fromAgent,
+      toAgent,
+      content: contentClean || '…',
+      messageType: (data?.messageType as any) || 'response',
+      timestamp: normalizeTimestamp(data?.timestamp),
+      aiGenerated: !!data?.aiGenerated,
+      model: data?.model || 'unknown-model',
+    } as AgentMessage;
+  };
+
   // Initialize real-time AI agents
   useEffect(() => {
     const eventBus = EventBus.getInstance();
@@ -363,7 +416,8 @@ const GlobalMissionDemo = () => {
     // Subscribe to real agent events
     const eventBus = EventBus.getInstance();
     
-    const unsubscribeTaskProgress = eventBus.subscribe('task_progress', (event) => {
+    const unsubscribeTaskProgress = eventBus.subscribe('task_progress', (evt) => {
+      const event = (evt as any)?.payload ?? evt;
       setAgentUpdates(prev => [`${event.agentId}: ${event.progress}% - ${event.message}`, ...prev.slice(0, 9)]);
       
       // Update mission progress based on real agent progress
@@ -372,7 +426,8 @@ const GlobalMissionDemo = () => {
       }
     });
 
-    const unsubscribeTaskCompleted = eventBus.subscribe('task_completed', (event) => {
+    const unsubscribeTaskCompleted = eventBus.subscribe('task_completed', (evt) => {
+      const event = (evt as any)?.payload ?? evt;
       setAgentUpdates(prev => [`✅ ${event.agentId}: Completed ${event.taskType} - ${event.result?.summary || 'Success'}`, ...prev.slice(0, 9)]);
       
       // Update agent status
@@ -383,16 +438,19 @@ const GlobalMissionDemo = () => {
       });
     });
 
-    const unsubscribeAgentCollaboration = eventBus.subscribe('collaboration_request', (event) => {
+    const unsubscribeAgentCollaboration = eventBus.subscribe('collaboration_request', (evt) => {
+      const event = (evt as any)?.payload ?? evt;
       setAgentUpdates(prev => [`🤝 ${event.fromAgent} → ${event.toAgent}: ${event.reason}`, ...prev.slice(0, 9)]);
     });
 
-    const unsubscribeBreakthrough = eventBus.subscribe('breakthrough_discovery', (event) => {
+    const unsubscribeBreakthrough = eventBus.subscribe('breakthrough_discovery', (evt) => {
+      const event = (evt as any)?.payload ?? evt;
       setAgentUpdates(prev => [`💡 BREAKTHROUGH: ${event.agentId} discovered ${event.discovery}!`, ...prev.slice(0, 9)]);
     });
 
     // Subscribe to real-time agent thoughts with deduplication
-    const unsubscribeAgentThought = eventBus.subscribe('agent_thought', (thought: AgentThought) => {
+    const unsubscribeAgentThought = eventBus.subscribe('agent_thought', (evt: any) => {
+      const thought = normalizeThought(evt);
       setAgentThoughts(prev => {
         // Проверяем дублирование по ID (убрано логирование спама)
         const exists = prev.some(existing => existing.id === thought.id);
@@ -406,7 +464,8 @@ const GlobalMissionDemo = () => {
     });
 
     // Subscribe to agent messages with deduplication
-    const unsubscribeAgentMessage = eventBus.subscribe('agent_message', (message: AgentMessage) => {
+    const unsubscribeAgentMessage = eventBus.subscribe('agent_message', (evt: any) => {
+      const message = normalizeMessage(evt);
       setAgentMessages(prev => {
         // Проверяем дублирование по ID (убрано логирование спама)
         const exists = prev.some(existing => existing.id === message.id);
@@ -420,20 +479,22 @@ const GlobalMissionDemo = () => {
     });
 
     // Subscribe to collective analysis updates
-    const unsubscribeCollectiveAnalysis = eventBus.subscribe('collective_decision_completed', (event) => {
+    const unsubscribeCollectiveAnalysis = eventBus.subscribe('collective_decision_completed', (evt) => {
+      const event = (evt as any)?.payload ?? evt;
       setCollectiveAnalysis(event.analysis);
       const solutionContent = event.solution?.content || 'Коллективное решение готово';
       setAgentUpdates(prev => [`✅ КОЛЛЕКТИВНОЕ РЕШЕНИЕ: ${solutionContent.substring(0, 100)}...`, ...prev.slice(0, 9)]);
     });
 
     // Subscribe to thought stream updates (UI only events)
-    const unsubscribeThoughtStream = eventBus.subscribe('thought_stream_update', (event) => {
+    const unsubscribeThoughtStream = eventBus.subscribe('thought_stream_update', (_evt) => {
       // Уже обрабатывается через agent_thought, просто логируем
       console.log('💭 Thought stream update received for UI');
     });
 
     // Subscribe to agent status changes
-    const unsubscribeAgentStatus = eventBus.subscribe('agent_status_change', (event) => {
+    const unsubscribeAgentStatus = eventBus.subscribe('agent_status_change', (evt) => {
+      const event = (evt as any)?.payload ?? evt;
       setRealAgentStatus(prev => {
         const updated = new Map(prev);
         updated.set(event.agentId, { 
@@ -445,17 +506,18 @@ const GlobalMissionDemo = () => {
     });
 
     // Subscribe to agent activations
-    const unsubscribeAgentActivated = eventBus.subscribe('agent_activated', (event) => {
+    const unsubscribeAgentActivated = eventBus.subscribe('agent_activated', (evt) => {
+      const event = (evt as any)?.payload ?? evt;
       setAgentUpdates(prev => [`🚀 ${event.agentId} активирован`, ...prev.slice(0, 9)]);
     });
 
     // Subscribe to collective analysis events
-    const unsubscribeCollectiveAnalysisStarted = eventBus.subscribe('collective_analysis_started', (event) => {
+    const unsubscribeCollectiveAnalysisStarted = eventBus.subscribe('collective_analysis_started', (_evt) => {
       setAgentUpdates(prev => [`🧠 Коллективный анализ запущен`, ...prev.slice(0, 9)]);
     });
 
     // Subscribe to collaboration facilitated events
-    const unsubscribeCollaborationFacilitated = eventBus.subscribe('collaboration_facilitated', (event) => {
+    const unsubscribeCollaborationFacilitated = eventBus.subscribe('collaboration_facilitated', (_evt) => {
       setAgentUpdates(prev => [`🤝 Коллаборация между агентами успешна`, ...prev.slice(0, 9)]);
     });
 
@@ -882,7 +944,7 @@ const GlobalMissionDemo = () => {
                                   {safeFormatTime(thought.timestamp)}
                                 </span>
                               </div>
-                              <p className="text-sm">{thought.content}</p>
+                              <p className="text-sm text-white whitespace-pre-wrap break-words">{thought.thought}</p>
                             </motion.div>
                           ))}
                         </AnimatePresence>
@@ -924,14 +986,14 @@ const GlobalMissionDemo = () => {
                               className="p-3 bg-secondary/5 rounded-lg border border-secondary/10"
                             >
                               <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="secondary" className="text-xs">
-                                  {message.fromAgent} → {message.toAgent}
+                                <Badge variant="outline" className="text-xs">
+                                  {getDisplayName(message.fromAgent)}{message.toAgent ? ` → ${getDisplayName(message.toAgent)}` : ''}
                                 </Badge>
                                 <span className="text-xs text-muted-foreground">
                                   {safeFormatTime(message.timestamp)}
                                 </span>
                               </div>
-                              <p className="text-sm">{message.content}</p>
+                              <p className="text-sm text-white whitespace-pre-wrap break-words">{message.content}</p>
                             </motion.div>
                           ))}
                         </AnimatePresence>

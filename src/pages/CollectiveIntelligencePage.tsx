@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Brain, Users, MessageSquare, Target } from 'lucide-react';
+import { ArrowLeft, Brain, Users, MessageSquare, Target, Globe, Network, Rocket } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import CollectiveIntelligenceDemo from '@/components/agents/CollectiveIntelligenceDemo';
 import DemoModeBanner from '@/components/ui/demo-mode-banner';
